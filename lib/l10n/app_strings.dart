@@ -2269,6 +2269,39 @@ class AppStrings {
     'ko': '최근 기록',
   });
 
+  // Drawer Section Headers
+  String get freeFeatures => _t({
+    'en': 'FREE FEATURES',
+    'ar': 'الميزات المجانية',
+    'fr': 'FONCTIONNALITÉS GRATUITES',
+    'es': 'FUNCIONES GRATUITAS',
+    'ko': '무료 기능',
+  });
+
+  String get premiumFeatures => _t({
+    'en': 'PREMIUM FEATURES',
+    'ar': 'الميزات المميزة',
+    'fr': 'FONCTIONNALITÉS PREMIUM',
+    'es': 'FUNCIONES PREMIUM',
+    'ko': '프리미엄 기능',
+  });
+
+  String get trialEndsIn => _t({
+    'en': 'Trial ends in',
+    'ar': 'تنتهي الفترة التجريبية في',
+    'fr': 'L\'essai se termine dans',
+    'es': 'La prueba termina en',
+    'ko': '체험 종료까지',
+  });
+
+  String get days => _t({
+    'en': 'days',
+    'ar': 'أيام',
+    'fr': 'jours',
+    'es': 'días',
+    'ko': '일',
+  });
+
   // Helper method to get translation
   String _t(Map<String, String> translations) {
     return translations[code] ?? translations['en'] ?? '';

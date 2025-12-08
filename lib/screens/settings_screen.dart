@@ -305,46 +305,22 @@ class SettingsScreen extends ConsumerWidget {
     return Card(
       child: Column(
         children: [
-          // System Default - always available
-          RadioListTile<AppThemeMode>(
-            title: Row(
-              children: [
-                const Icon(Icons.brightness_auto, size: 20),
-                const SizedBox(width: 12),
-                Text(strings.systemDefault),
-              ],
-            ),
-            value: AppThemeMode.system,
-            groupValue: currentTheme,
-            onChanged: (value) {
-              ref
-                  .read(appThemeModeProvider.notifier)
-                  .setTheme(AppThemeMode.system);
-            },
-          ),
-          const Divider(height: 1),
-
-          // Light Mode - premium only
+          // Light Mode - always available (default)
           RadioListTile<AppThemeMode>(
             title: Row(
               children: [
                 const Icon(Icons.light_mode, size: 20),
                 const SizedBox(width: 12),
                 Text(strings.lightMode),
-                if (!isPremium) ...[
-                  const SizedBox(width: 8),
-                  _buildPremiumBadge(),
-                ],
               ],
             ),
             value: AppThemeMode.light,
             groupValue: currentTheme,
-            onChanged: isPremium
-                ? (value) => ref
-                    .read(appThemeModeProvider.notifier)
-                    .setTheme(AppThemeMode.light)
-                : (value) => _showPremiumDialog(
-                    context, strings.themePremiumOnly, strings),
+            onChanged: (value) {
+              ref
+                  .read(appThemeModeProvider.notifier)
+                  .setTheme(AppThemeMode.light);
+            },
           ),
           const Divider(height: 1),
 

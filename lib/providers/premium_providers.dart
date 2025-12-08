@@ -33,12 +33,56 @@ final userProfileProvider = Provider<UserProfile?>((ref) {
   return profileAsync.valueOrNull;
 });
 
+/// Trial duration in days
+const int trialDurationDays = 7;
+
+/// Provider to check if user is in trial period
+final isInTrialProvider = FutureProvider<bool>((ref) async {
+  final prefs = await SharedPreferences.getInstance();
+  final firstLaunchStr = prefs.getString('first_launch_date');
+  
+  if (firstLaunchStr == null) {
+    // First time launch - start trial
+    await prefs.setString('first_launch_date', DateTime.now().toIso8601String());
+    return true;
+  }
+  
+  final firstLaunch = DateTime.parse(firstLaunchStr);
+  final daysSinceFirstLaunch = DateTime.now().difference(firstLaunch).inDays;
+  return daysSinceFirstLaunch < trialDurationDays;
+});
+
+/// Provider for remaining trial days
+final trialDaysRemainingProvider = FutureProvider<int>((ref) async {
+  final prefs = await SharedPreferences.getInstance();
+  final firstLaunchStr = prefs.getString('first_launch_date');
+  
+  if (firstLaunchStr == null) {
+    return trialDurationDays;
+  }
+  
+  final firstLaunch = DateTime.parse(firstLaunchStr);
+  final daysSinceFirstLaunch = DateTime.now().difference(firstLaunch).inDays;
+  final remaining = trialDurationDays - daysSinceFirstLaunch;
+  return remaining > 0 ? remaining : 0;
+});
+
 /// Provider that checks if the current user has premium access.
-/// NOTE: Returns true for all users during testing.
+/// Premium = paid premium OR in trial period
+/// NOTE: Returns true for all users during testing - set testingMode to false for production
+const bool testingMode = true; // Set to false for production
+
 final isPremiumProvider = Provider<bool>((ref) {
-  // TODO: Change back to false after testing
+  // Testing mode - all features free
+  if (testingMode) return true;
+  
+  // Check if user has paid premium
   final profile = ref.watch(userProfileProvider);
-  return profile?.isPremium ?? true; // Changed from false to true for testing
+  if (profile?.isPremium ?? false) return true;
+  
+  // Check if user is in trial (async check, default to false)
+  final trialAsync = ref.watch(isInTrialProvider);
+  return trialAsync.valueOrNull ?? false;
 });
 
 /// StateNotifier for the user's base currency - works with local storage

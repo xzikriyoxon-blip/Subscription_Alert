@@ -50,16 +50,16 @@ final appThemeModeProvider =
 
 /// Notifier for managing theme mode state.
 class AppThemeModeNotifier extends StateNotifier<AppThemeMode> {
-  AppThemeModeNotifier() : super(AppThemeMode.system) {
+  AppThemeModeNotifier() : super(AppThemeMode.light) {
     _loadTheme();
   }
 
   Future<void> _loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
-    final themeStr = prefs.getString('app_theme_mode') ?? 'system';
+    final themeStr = prefs.getString('app_theme_mode') ?? 'light';
     state = AppThemeMode.values.firstWhere(
       (t) => t.name == themeStr,
-      orElse: () => AppThemeMode.system,
+      orElse: () => AppThemeMode.light,
     );
   }
 

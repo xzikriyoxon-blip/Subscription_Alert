@@ -16,6 +16,11 @@ import 'watch_search_screen.dart';
 import 'music_search_screen.dart';
 import 'deals_screen.dart';
 import 'referral_screen.dart';
+import 'spend_health_screen.dart';
+import 'timeline_screen.dart';
+import 'wishlist_screen.dart';
+import 'usage_analytics_screen.dart';
+import 'report_screen.dart';
 
 /// Home screen displaying the user's subscriptions.
 /// 
@@ -54,62 +59,9 @@ class HomeScreen extends ConsumerWidget {
                 ],
               ),
             ),
-          // Referral/Invite button
-          IconButton(
-            icon: const Icon(Icons.card_giftcard),
-            tooltip: strings.inviteFriends,
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ReferralScreen()),
-            ),
-          ),
-          // Deals button
-          IconButton(
-            icon: const Icon(Icons.local_offer),
-            tooltip: strings.deals,
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const DealsScreen()),
-            ),
-          ),
-          // Music Search button
-          IconButton(
-            icon: const Icon(Icons.music_note),
-            tooltip: strings.musicSearch,
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const MusicSearchScreen()),
-            ),
-          ),
-          // Where to Watch button
-          IconButton(
-            icon: const Icon(Icons.live_tv),
-            tooltip: strings.whereToWatch,
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const WatchSearchScreen()),
-            ),
-          ),
-          // Settings button
-          IconButton(
-            icon: const Icon(Icons.settings),
-            tooltip: strings.settings,
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const SettingsScreen()),
-            ),
-          ),
-          // History button
-          IconButton(
-            icon: const Icon(Icons.history),
-            tooltip: strings.history,
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const HistoryScreen()),
-            ),
-          ),
-          // Logout button
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: strings.signOut,
-            onPressed: () => _showSignOutDialog(context, ref, authService),
-          ),
         ],
       ),
+      drawer: _buildDrawer(context, ref, strings, isPremium, authService),
       body: subscriptionsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => Center(
@@ -620,6 +572,250 @@ class HomeScreen extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildDrawer(BuildContext context, WidgetRef ref, dynamic strings, bool isPremium, dynamic authService) {
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          DrawerHeader(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: isPremium
+                    ? [Colors.amber[600]!, Colors.orange[400]!]
+                    : [Colors.blue[600]!, Colors.blue[400]!],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                const Icon(Icons.subscriptions, size: 48, color: Colors.white),
+                const SizedBox(height: 8),
+                Text(
+                  strings.appTitle,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                if (isPremium)
+                  Container(
+                    margin: const EdgeInsets.only(top: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'PRO',
+                      style: TextStyle(color: Colors.white, fontSize: 12),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          
+          // FREE FEATURES
+          _buildDrawerSectionHeader(strings.freeFeatures),
+          
+          // Payment History - FREE
+          ListTile(
+            leading: const Icon(Icons.history),
+            title: Text(strings.history),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoryScreen()));
+            },
+          ),
+          
+          const Divider(),
+          
+          // PREMIUM FEATURES
+          _buildDrawerSectionHeader(strings.premiumFeatures),
+          
+          // Where to Watch - PREMIUM
+          _buildPremiumDrawerItem(
+            context: context,
+            icon: Icons.live_tv,
+            title: strings.whereToWatch,
+            isPremium: isPremium,
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const WatchSearchScreen()));
+            },
+          ),
+          
+          // Music Search - PREMIUM
+          _buildPremiumDrawerItem(
+            context: context,
+            icon: Icons.music_note,
+            title: strings.musicSearch,
+            isPremium: isPremium,
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const MusicSearchScreen()));
+            },
+          ),
+          
+          // Deals - PREMIUM
+          _buildPremiumDrawerItem(
+            context: context,
+            icon: Icons.local_offer,
+            title: strings.deals,
+            isPremium: isPremium,
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const DealsScreen()));
+            },
+          ),
+          
+          // Spend Health - PREMIUM
+          _buildPremiumDrawerItem(
+            context: context,
+            icon: Icons.health_and_safety,
+            title: strings.spendHealth,
+            isPremium: isPremium,
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const SpendHealthScreen()));
+            },
+          ),
+          
+          // Timeline - PREMIUM
+          _buildPremiumDrawerItem(
+            context: context,
+            icon: Icons.timeline,
+            title: strings.timeline,
+            isPremium: isPremium,
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const TimelineScreen()));
+            },
+          ),
+          
+          // Wishlist - PREMIUM
+          _buildPremiumDrawerItem(
+            context: context,
+            icon: Icons.favorite,
+            title: strings.wishlist,
+            isPremium: isPremium,
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const WishlistScreen()));
+            },
+          ),
+          
+          // Usage Analytics - PREMIUM
+          _buildPremiumDrawerItem(
+            context: context,
+            icon: Icons.analytics,
+            title: strings.usageAnalytics,
+            isPremium: isPremium,
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const UsageAnalyticsScreen()));
+            },
+          ),
+          
+          // Reports - PREMIUM
+          _buildPremiumDrawerItem(
+            context: context,
+            icon: Icons.description,
+            title: strings.reports,
+            isPremium: isPremium,
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportScreen()));
+            },
+          ),
+          
+          // Referral/Invite - PREMIUM
+          _buildPremiumDrawerItem(
+            context: context,
+            icon: Icons.card_giftcard,
+            title: strings.inviteFriends,
+            isPremium: isPremium,
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const ReferralScreen()));
+            },
+          ),
+          
+          const Divider(),
+          
+          // Settings
+          ListTile(
+            leading: const Icon(Icons.settings),
+            title: Text(strings.settings),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
+            },
+          ),
+          
+          // Sign Out
+          ListTile(
+            leading: const Icon(Icons.logout, color: Colors.red),
+            title: Text(strings.signOut, style: const TextStyle(color: Colors.red)),
+            onTap: () {
+              Navigator.pop(context);
+              _showSignOutDialog(context, ref, authService);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDrawerSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          color: Colors.grey[600],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPremiumDrawerItem({
+    required BuildContext context,
+    required IconData icon,
+    required String title,
+    required bool isPremium,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Row(
+        children: [
+          Text(title),
+          if (!isPremium) ...[
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.amber,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                'PRO',
+                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+            ),
+          ],
+        ],
+      ),
+      onTap: onTap, // All features accessible (testing mode / trial)
     );
   }
 }
