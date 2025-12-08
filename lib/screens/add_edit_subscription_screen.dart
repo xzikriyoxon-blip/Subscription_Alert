@@ -6,8 +6,10 @@ import '../models/subscription.dart';
 import '../models/subscription_brand.dart';
 import '../models/currency.dart';
 import '../providers/subscription_providers.dart';
+import '../providers/premium_providers.dart';
 import '../widgets/brand_selection_dialog.dart';
 import '../widgets/currency_selection_dialog.dart';
+import '../services/ad_service.dart';
 
 /// Screen for adding or editing a subscription.
 /// 
@@ -139,6 +141,12 @@ class _AddEditSubscriptionScreenState
       }
 
       if (mounted) {
+        // Show interstitial ad for non-premium users after saving
+        final isPremium = ref.read(isPremiumProvider);
+        if (!isPremium) {
+          await AdService().showInterstitialAdIfReady();
+        }
+        
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

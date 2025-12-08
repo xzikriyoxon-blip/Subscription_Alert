@@ -9,6 +9,7 @@ import '../providers/premium_providers.dart';
 import '../services/exchange_rate_service.dart';
 import '../widgets/subscription_list_item.dart';
 import '../widgets/subscription_detail_dialog.dart';
+import '../widgets/banner_ad_widget.dart';
 import 'add_edit_subscription_screen.dart';
 import 'history_screen.dart';
 import 'settings_screen.dart';
@@ -88,6 +89,8 @@ class HomeScreen extends ConsumerWidget {
           subscriptions,
         ),
       ),
+      // Show banner ad for non-premium users
+      bottomNavigationBar: isPremium ? null : const BannerAdWidget(),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _navigateToAddSubscription(context),
         tooltip: strings.addSubscription,

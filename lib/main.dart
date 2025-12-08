@@ -8,6 +8,7 @@ import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/notification_service.dart';
 import 'services/theme_service.dart';
+import 'services/ad_service.dart';
 
 /// Entry point of the Subscription Alert application.
 /// 
@@ -25,6 +26,10 @@ void main() async {
   final notificationService = NotificationService();
   await notificationService.initialize();
   await notificationService.requestPermissions();
+
+  // Initialize AdMob
+  final adService = AdService();
+  await adService.initialize();
 
   // Run the app with Riverpod
   runApp(
