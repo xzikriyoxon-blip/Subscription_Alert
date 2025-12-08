@@ -1,26 +1,36 @@
 {
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "subscription-alert-placeholder",
-    "storage_bucket": "subscription-alert-placeholder.appspot.com"
+    "project_number": "537197819060",
+    "project_id": "subscriptionalert-f5302",
+    "storage_bucket": "subscriptionalert-f5302.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+        "mobilesdk_app_id": "1:537197819060:android:4b529a12032024d3ce53e1",
         "android_client_info": {
           "package_name": "com.example.subscription_alert"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "537197819060-sa7fb612732t24o9ivt5p8gj9ssdhps0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyPlaceholderKeyForBuildOnly000000"
+          "current_key": "AIzaSyBoVbyZ1K3wmHfdE2LGTFfMPZjtHduFI7c"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "537197819060-sa7fb612732t24o9ivt5p8gj9ssdhps0.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
