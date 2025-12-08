@@ -2278,14 +2278,6 @@ class AppStrings {
     'ko': '무료 기능',
   });
 
-  String get premiumFeatures => _t({
-    'en': 'PREMIUM FEATURES',
-    'ar': 'الميزات المميزة',
-    'fr': 'FONCTIONNALITÉS PREMIUM',
-    'es': 'FUNCIONES PREMIUM',
-    'ko': '프리미엄 기능',
-  });
-
   String get trialEndsIn => _t({
     'en': 'Trial ends in',
     'ar': 'تنتهي الفترة التجريبية في',
