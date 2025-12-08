@@ -9,6 +9,7 @@ import 'screens/login_screen.dart';
 import 'services/notification_service.dart';
 import 'services/theme_service.dart';
 import 'services/ad_service.dart';
+import 'providers/premium_providers.dart';
 
 /// Entry point of the Subscription Alert application.
 /// 
@@ -71,14 +72,41 @@ class AuthWrapper extends ConsumerStatefulWidget {
   ConsumerState<AuthWrapper> createState() => _AuthWrapperState();
 }
 
-class _AuthWrapperState extends ConsumerState<AuthWrapper> {
+class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Schedule notification rescheduling after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _rescheduleNotifications();
+      // Show app open ad on first launch
+      _showAppOpenAd();
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Show app open ad when app is resumed from background
+      _showAppOpenAd();
+    }
+  }
+
+  /// Show app open ad for non-premium users.
+  Future<void> _showAppOpenAd() async {
+    // Small delay to let the UI settle
+    await Future.delayed(const Duration(milliseconds: 500));
+    final isPremium = ref.read(isPremiumProvider);
+    if (!isPremium) {
+      await AdService().showAppOpenAd();
+    }
   }
 
   /// Reschedules all notifications when app starts.

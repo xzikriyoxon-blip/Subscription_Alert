@@ -54,6 +54,12 @@ dev_dependencies:
   flutter_lints: ^3.0.1
   riverpod_generator: ^2.3.9
   build_runner: ^2.4.8
+  flutter_launcher_icons: ^0.13.1
+
+flutter_icons:
+  android: true
+  ios: false
+  image_path: "assets/photo_2025-12-08_16-36-20.jpg"
 
 flutter:
   uses-material-design: true
