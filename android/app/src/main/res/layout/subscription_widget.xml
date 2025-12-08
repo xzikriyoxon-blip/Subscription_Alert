@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@drawable/widget_background"
+    android:gravity="center">
+
+    <!-- Widget Title -->
+    <TextView
+        android:id="@+id/widget_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Subscription Alert"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF"
+        android:layout_marginBottom="8dp"/>
+
+    <!-- Next Renewal Section -->
+    <TextView
+        android:id="@+id/next_renewal_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Next Renewal"
+        android:textSize="12sp"
+        android:textColor="#B0B0B0"/>
+
+    <TextView
+        android:id="@+id/next_renewal_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Netflix"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF"
+        android:layout_marginTop="4dp"/>
+
+    <TextView
+        android:id="@+id/next_renewal_date"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="in 3 days"
+        android:textSize="14sp"
+        android:textColor="#FFCC00"
+        android:layout_marginTop="2dp"/>
+
+    <!-- Monthly Total Section -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#444444"
+        android:layout_marginVertical="12dp"/>
+
+    <TextView
+        android:id="@+id/monthly_total_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Monthly Total"
+        android:textSize="12sp"
+        android:textColor="#B0B0B0"/>
+
+    <TextView
+        android:id="@+id/monthly_total_amount"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="$99.99"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="#4CAF50"
+        android:layout_marginTop="4dp"/>
+
+    <!-- Subscriptions Count -->
+    <TextView
+        android:id="@+id/subscriptions_count"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="5 active subscriptions"
+        android:textSize="11sp"
+        android:textColor="#888888"
+        android:layout_marginTop="8dp"/>
+
+</LinearLayout>
