@@ -7,9 +7,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:537197819060:android:4b529a12032024d3ce53e1",
+        "mobilesdk_app_id": "1:537197819060:android:609efb9357fd683dce53e1",
         "android_client_info": {
-          "package_name": "com.example.subscription_alert"
+          "package_name": "com.xzikriyoxon.subscriptionalert"
         }
       },
       "oauth_client": [
