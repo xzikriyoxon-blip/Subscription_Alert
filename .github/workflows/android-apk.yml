@@ -24,7 +24,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "stable"
+          channel: "stable"
           cache: true
 
       - name: Flutter version
@@ -52,7 +52,7 @@ jobs:
       - name: Decode keystore (optional)
         if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
         run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/release.keystore
+          printf '%s' "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/release.keystore
 
       - name: Create key.properties (optional)
         if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
