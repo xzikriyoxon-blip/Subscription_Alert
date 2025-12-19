@@ -22,6 +22,25 @@ workflows:
           include: true
           source: true
     scripts:
+      - name: Ensure Android SDK platform (API 36)
+        script: |
+          set -euo pipefail
+          ANDROID_SDK_DIR="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+          if [ -z "$ANDROID_SDK_DIR" ]; then
+            echo "ANDROID_SDK_ROOT/ANDROID_HOME is not set; cannot install Android SDK components" >&2
+            exit 1
+          fi
+          SDKMANAGER="$ANDROID_SDK_DIR/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            echo "sdkmanager not found at $SDKMANAGER" >&2
+            echo "ANDROID_SDK_ROOT=$ANDROID_SDK_DIR" >&2
+            exit 1
+          fi
+          yes | "$SDKMANAGER" --licenses >/dev/null
+          "$SDKMANAGER" \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;35.0.0"
       - name: Generate android/local.properties (CI)
         script: |
           set -euo pipefail

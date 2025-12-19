@@ -40,7 +40,10 @@ def hasReleaseSigning = keystorePropertiesFile.exists() &&
 
 android {
     namespace "com.xzikriyoxon.subscriptionalert"
-    compileSdk flutter.compileSdkVersion
+    // Pin compile/target SDK to avoid CI breakages when plugins require a higher API level
+    // than the Flutter default for a given channel/version.
+    // Update this in lockstep with your CI-installed Android SDK platform.
+    compileSdk 36
     ndkVersion flutter.ndkVersion
 
     compileOptions {
@@ -61,7 +64,7 @@ android {
     defaultConfig {
         applicationId "com.xzikriyoxon.subscriptionalert"
         minSdkVersion flutter.minSdkVersion
-        targetSdk flutter.targetSdkVersion
+        targetSdk 36
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
         // Required for flutter_local_notifications
