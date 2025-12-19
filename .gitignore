@@ -54,5 +54,8 @@ app.*.map.json
 *.keystore
 key.properties
 
+# Local helper outputs (do not commit)
+android/upload-keystore.base64.txt
+
 # Local configuration
 local.properties

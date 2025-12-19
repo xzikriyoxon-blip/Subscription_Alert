@@ -1,4 +1,4 @@
-package com.example.subscription_alert
+package com.xzikriyoxon.subscriptionalert
 
 import io.flutter.embedding.android.FlutterActivity
 
