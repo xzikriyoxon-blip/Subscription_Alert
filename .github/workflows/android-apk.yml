@@ -105,7 +105,11 @@ jobs:
             exit 1
           fi
 
-          yes | "$SDKMANAGER" --licenses >/dev/null
+          # Accept licenses. `sdkmanager --licenses` may exit before `yes` finishes,
+          # which triggers SIGPIPE and fails the step under `set -o pipefail`.
+          set +o pipefail
+          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
+          set -o pipefail
           # Install required platform. If build-tools 36 isn't available, fall back to 35.
           "$SDKMANAGER" "platform-tools" "platforms;android-36"
           if ! "$SDKMANAGER" "build-tools;36.0.0"; then
