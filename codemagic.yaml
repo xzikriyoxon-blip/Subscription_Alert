@@ -2,14 +2,17 @@ workflows:
   android-workflow:
     name: Android Build
     max_build_duration: 60
-    instance_type: mac_mini_m2
+    instance_type: linux_x2
     environment:
       flutter: stable
       java: 17
       groups:
         - google_credentials # Add your Firebase/Google credentials group
+        # Optional: define these in Codemagic UI (Variables group) for signed release builds.
+        # ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_PASSWORD, ANDROID_KEY_ALIAS
+        - android_signing
       vars:
-        PACKAGE_NAME: "com.example.subscription_alert" # Update with your package name
+        PACKAGE_NAME: "com.xzikriyoxon.subscriptionalert"
     triggering:
       events:
         - push
@@ -19,25 +22,69 @@ workflows:
           include: true
           source: true
     scripts:
-      - name: Set up local.properties
+      - name: Generate android/local.properties (CI)
         script: |
-          echo "flutter.sdk=$HOME/programs/flutter" > "$CM_BUILD_DIR/android/local.properties"
+          set -euo pipefail
+          FLUTTER_SDK_DIR="$(dirname "$(dirname "$(command -v flutter)")")"
+          ANDROID_SDK_DIR="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+          if [ -z "$ANDROID_SDK_DIR" ]; then
+            echo "ANDROID_SDK_ROOT/ANDROID_HOME is not set; cannot create sdk.dir" >&2
+            exit 1
+          fi
+          cat > "$CM_BUILD_DIR/android/local.properties" <<EOF
+          flutter.sdk=$FLUTTER_SDK_DIR
+          sdk.dir=$ANDROID_SDK_DIR
+          EOF
+          echo "Wrote android/local.properties:" 
+          cat "$CM_BUILD_DIR/android/local.properties"
       - name: Get Flutter packages
         script: |
-          flutter packages pub get
+          flutter pub get
+      - name: Run tests
+        script: |
+          flutter test
       - name: Build APK (debug)
         script: |
           flutter build apk --debug
-      - name: Build APK (release)
+
+      # Signed release builds (optional). Configure environment variables in Codemagic UI:
+      # ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_PASSWORD, ANDROID_KEY_ALIAS
+      - name: Configure Android signing (optional)
         script: |
+          set -euo pipefail
+          if [ -z "${ANDROID_KEYSTORE_BASE64:-}" ]; then
+            echo "No ANDROID_KEYSTORE_BASE64 set; skipping signing setup."
+            exit 0
+          fi
+
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$CM_BUILD_DIR/android/app/release.keystore"
+          cat > "$CM_BUILD_DIR/android/key.properties" <<EOF
+          storePassword=${ANDROID_KEYSTORE_PASSWORD}
+          keyPassword=${ANDROID_KEY_PASSWORD}
+          keyAlias=${ANDROID_KEY_ALIAS}
+          storeFile=release.keystore
+          EOF
+          echo "Created android/key.properties for release signing."
+
+      - name: Build APK (release, optional)
+        script: |
+          if [ -z "${ANDROID_KEYSTORE_BASE64:-}" ]; then
+            echo "Skipping release APK (no signing configured)."
+            exit 0
+          fi
           flutter build apk --release
-      - name: Build App Bundle (release)
+
+      - name: Build App Bundle (release, optional)
         script: |
+          if [ -z "${ANDROID_KEYSTORE_BASE64:-}" ]; then
+            echo "Skipping release AAB (no signing configured)."
+            exit 0
+          fi
           flutter build appbundle --release
     artifacts:
-      - build/**/outputs/**/*.apk
-      - build/**/outputs/**/*.aab
-      - build/**/outputs/**/mapping.txt
+      - build/app/outputs/flutter-apk/*.apk
+      - build/app/outputs/bundle/release/*.aab
+      - android/app/build/outputs/mapping/release/mapping.txt
       - flutter_drive.log
 
   ios-workflow:
