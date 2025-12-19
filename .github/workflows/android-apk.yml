@@ -79,7 +79,7 @@ jobs:
         run: |
           set +e
           cd android
-          ./gradlew :app:assembleDebug --stacktrace --info 2>&1 | tee ../build-debug.log
+          ./gradlew :app:assembleDebug --stacktrace --console=plain --no-daemon 2>&1 | tee ../build-debug.log
           echo "exit_code=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
           exit 0
 
@@ -87,10 +87,19 @@ jobs:
         if: always()
         shell: bash
         run: |
-          echo "---- error lines (tail) ----"
-          grep -nE "(^e: |\berror:|Compilation error)" build-debug.log | tail -n 200 || true
-          echo "---- last 200 log lines ----"
-          tail -n 200 build-debug.log || true
+          echo "---- FAILURE section (if present) ----"
+          awk '
+            BEGIN {p=0}
+            /FAILURE: Build failed with an exception\./ {p=1}
+            p==1 {print}
+            p==1 && /^BUILD FAILED/ {exit}
+          ' build-debug.log || true
+
+          echo "---- likely error lines (tail) ----"
+          grep -nE "(FAILURE: Build failed|\* What went wrong:|\* Exception is:|Execution failed for task|A problem occurred|^e: |\berror:|Compilation error|Caused by:)" build-debug.log | tail -n 250 || true
+
+          echo "---- last 300 log lines ----"
+          tail -n 300 build-debug.log || true
 
       - name: Upload build log (always)
         if: always()
