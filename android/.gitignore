@@ -1,11 +1,11 @@
-gradle-wrapper.jar
 /.gradle
 /captures/
-/gradlew
-/gradlew.bat
 /local.properties
 GeneratedPluginRegistrant.java
 .cxx/
+
+# Gradle wrapper should be committed so CI can run builds.
+# (Do NOT ignore gradlew/gradlew.bat/gradle-wrapper.jar)
 
 # Remember to never publicly share your keystore.
 # See https://flutter.dev/to/reference-keystore
