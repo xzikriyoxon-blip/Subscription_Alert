@@ -41,8 +41,36 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Prefer runner-provided values, else fall back to the common location on ubuntu-latest.
-          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          # Prefer runner-provided values. If not set (or invalid), probe common SDK locations.
+          SDK_ROOT=""
+          if [ -n "${ANDROID_SDK_ROOT:-}" ] && [ -d "${ANDROID_SDK_ROOT}" ]; then
+            SDK_ROOT="$ANDROID_SDK_ROOT"
+          elif [ -n "${ANDROID_HOME:-}" ] && [ -d "${ANDROID_HOME}" ]; then
+            SDK_ROOT="$ANDROID_HOME"
+          else
+            for CANDIDATE in \
+              "/usr/local/lib/android/sdk" \
+              "/opt/hostedtoolcache/android/sdk" \
+              "/opt/android-sdk" \
+              "/opt/android"; do
+              if [ -d "$CANDIDATE" ]; then
+                SDK_ROOT="$CANDIDATE"
+                break
+              fi
+            done
+          fi
+
+          if [ -z "$SDK_ROOT" ]; then
+            echo "Android SDK not found. Checked ANDROID_SDK_ROOT/ANDROID_HOME and common locations." >&2
+            echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-<unset>}" >&2
+            echo "ANDROID_HOME=${ANDROID_HOME:-<unset>}" >&2
+            echo "Directory listing of /usr/local/lib/android (if present):" >&2
+            ls -la /usr/local/lib/android 2>/dev/null || true
+            echo "Directory listing of /opt/hostedtoolcache/android (if present):" >&2
+            ls -la /opt/hostedtoolcache/android 2>/dev/null || true
+            exit 1
+          fi
+
           echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
           echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
           echo "Resolved ANDROID_SDK_ROOT=$SDK_ROOT"
@@ -78,12 +106,11 @@ jobs:
           fi
 
           yes | "$SDKMANAGER" --licenses >/dev/null
-          # Install required platform. Build-tools 36 may not always be available yet; fall back to 35.
-          "$SDKMANAGER" \
-            "platform-tools" \
-            "platforms;android-36" \
-            "build-tools;36.0.0" \
-            "build-tools;35.0.0" || true
+          # Install required platform. If build-tools 36 isn't available, fall back to 35.
+          "$SDKMANAGER" "platform-tools" "platforms;android-36"
+          if ! "$SDKMANAGER" "build-tools;36.0.0"; then
+            "$SDKMANAGER" "build-tools;35.0.0"
+          fi
 
           echo "Installed Android platforms/build-tools (filtered):"
           "$SDKMANAGER" --list_installed | grep -E "(platforms;android-36|build-tools;3[5-6]\\.|platform-tools)" || true
