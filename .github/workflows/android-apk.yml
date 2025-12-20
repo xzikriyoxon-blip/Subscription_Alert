@@ -223,6 +223,19 @@ jobs:
         run: |
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
 
+      - name: Print release keystore fingerprints (SHA-1/SHA-256)
+        if: env.ANDROID_KEYSTORE_BASE64 != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "---- Release keystore fingerprints ----"
+          # This prints only certificate fingerprints (safe to share). Required for Google Sign-In.
+          keytool -list -v \
+            -keystore android/app/release.keystore \
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+            | grep -E "SHA1:|SHA-1:|SHA256:|SHA-256:" || true
+          echo "--------------------------------------"
+
       - name: Create key.properties (optional)
         if: env.ANDROID_KEYSTORE_BASE64 != ''
         shell: bash
