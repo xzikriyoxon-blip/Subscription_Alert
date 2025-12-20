@@ -1,3 +1,4 @@
+import 'dart:async' show Zone, runZonedGuarded;
 import 'dart:ui' show PlatformDispatcher;
 
 import 'package:firebase_core/firebase_core.dart';
@@ -20,9 +21,47 @@ import 'providers/premium_providers.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // In release builds, widget build/layout exceptions can otherwise degrade into
+  // a blank screen. Show a readable error UI instead.
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    final message = details.exceptionAsString();
+    return Material(
+      color: const Color(0xFFF7F7F7),
+      child: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline, size: 56, color: Colors.redAccent),
+                const SizedBox(height: 12),
+                const Text(
+                  'Something went wrong',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  };
+
   // Catch framework errors.
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
+    // Also forward into the zone so we get logs in release builds.
+    Zone.current.handleUncaughtError(
+      details.exception,
+      details.stack ?? StackTrace.current,
+    );
   };
 
   // Catch async errors.
@@ -34,10 +73,18 @@ void main() {
 
   // Always start rendering immediately. All slow/fragile initialization happens
   // inside the bootstrap screen so the user never gets a blank white screen.
-  runApp(
-    const ProviderScope(
-      child: _BootstrapApp(),
-    ),
+  runZonedGuarded(
+    () {
+      runApp(
+        const ProviderScope(
+          child: _BootstrapApp(),
+        ),
+      );
+    },
+    (error, stack) {
+      debugPrint('Uncaught zoned error: $error');
+      debugPrint(stack.toString());
+    },
   );
 }
 
