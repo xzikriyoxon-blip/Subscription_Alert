@@ -1,5 +1,8 @@
+import 'dart:ui' show PlatformDispatcher;
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'firebase_options.dart';
 import 'providers/auth_provider.dart';
@@ -14,30 +17,181 @@ import 'providers/premium_providers.dart';
 /// Entry point of the Subscription Alert application.
 /// 
 /// Initializes Firebase and notification services before running the app.
-void main() async {
-  // Ensure Flutter bindings are initialized
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // Catch framework errors.
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+  };
 
-  // Initialize notifications
-  final notificationService = NotificationService();
-  await notificationService.initialize();
-  await notificationService.requestPermissions();
+  // Catch async errors.
+  PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint('Uncaught async error: $error');
+    debugPrint(stack.toString());
+    return true; // handled
+  };
 
-  // Initialize AdMob
-  final adService = AdService();
-  await adService.initialize();
-
-  // Run the app with Riverpod
+  // Always start rendering immediately. All slow/fragile initialization happens
+  // inside the bootstrap screen so the user never gets a blank white screen.
   runApp(
     const ProviderScope(
-      child: SubscriptionAlertApp(),
+      child: _BootstrapApp(),
     ),
   );
+}
+
+class _BootstrapApp extends StatefulWidget {
+  const _BootstrapApp();
+
+  @override
+  State<_BootstrapApp> createState() => _BootstrapAppState();
+}
+
+class _BootstrapAppState extends State<_BootstrapApp> {
+  late Future<void> _initFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _initFuture = _initialize();
+  }
+
+  Future<void> _initialize() async {
+    // Firebase
+    // On Android/iOS we should rely on google-services.json / GoogleService-Info.plist.
+    // The firebase_options.dart in this repo is placeholder and should NOT be
+    // forced on mobile.
+    if (kIsWeb) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      ).timeout(const Duration(seconds: 20));
+    } else {
+      await Firebase.initializeApp().timeout(const Duration(seconds: 20));
+    }
+
+    // Notifications (required for reminders, but should not brick the app).
+    final notificationService = NotificationService();
+    await notificationService.initialize().timeout(const Duration(seconds: 15));
+    await notificationService.requestPermissions().timeout(const Duration(seconds: 30));
+
+    // Ads should never block app launch.
+    try {
+      final adService = AdService();
+      await adService.initialize().timeout(const Duration(seconds: 15));
+    } catch (e) {
+      debugPrint('Bootstrap: Ad init failed (continuing): $e');
+    }
+  }
+
+  void _retry() {
+    setState(() {
+      _initFuture = _initialize();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<void>(
+      future: _initFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            title: 'Subscription Alert',
+            theme: AppTheme.light,
+            darkTheme: AppTheme.dark,
+            home: const Scaffold(
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Starting…'),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+
+        final error = snapshot.error;
+        if (error != null) {
+          return _BootErrorApp(
+            error: error,
+            stack: snapshot.stackTrace,
+            onRetry: _retry,
+          );
+        }
+
+        return const SubscriptionAlertApp();
+      },
+    );
+  }
+}
+
+class _BootErrorApp extends StatelessWidget {
+  final Object error;
+  final StackTrace? stack;
+  final VoidCallback? onRetry;
+
+  const _BootErrorApp({
+    required this.error,
+    required this.stack,
+    this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Subscription Alert',
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      home: Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, size: 56, color: Colors.red[300]),
+                const SizedBox(height: 16),
+                const Text(
+                  'App failed to start',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  error.toString(),
+                  textAlign: TextAlign.center,
+                ),
+                if (onRetry != null) ...[
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: onRetry,
+                    child: const Text('Retry'),
+                  ),
+                ],
+                if (stack != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    stack.toString(),
+                    maxLines: 6,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 11, color: Colors.black54),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// Root widget of the application.
@@ -79,9 +233,20 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
     WidgetsBinding.instance.addObserver(this);
     // Schedule notification rescheduling after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _rescheduleNotifications();
-      // Show app open ad on first launch
-      _showAppOpenAd();
+      () async {
+        try {
+          await _rescheduleNotifications();
+        } catch (e) {
+          debugPrint('AuthWrapper: Failed to reschedule notifications: $e');
+        }
+
+        // Show app open ad on first launch
+        try {
+          await _showAppOpenAd();
+        } catch (e) {
+          debugPrint('AuthWrapper: Failed to show app open ad: $e');
+        }
+      }();
     });
   }
 
@@ -95,7 +260,13 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       // Show app open ad when app is resumed from background
-      _showAppOpenAd();
+      () async {
+        try {
+          await _showAppOpenAd();
+        } catch (e) {
+          debugPrint('AuthWrapper: Failed to show app open ad on resume: $e');
+        }
+      }();
     }
   }
 
