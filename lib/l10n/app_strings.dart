@@ -1346,6 +1346,14 @@ class AppStrings {
 
   // ==================== WISHLISTS FEATURE ====================
 
+  String get wishlist => _t({
+    'en': 'Wishlist',
+    'ar': 'قائمة الرغبات',
+    'fr': 'Liste de souhaits',
+    'es': 'Lista de deseos',
+    'ko': '위시리스트',
+  });
+
   String get wishlists => _t({
     'en': 'Wishlists',
     'ar': 'قوائم الرغبات',
