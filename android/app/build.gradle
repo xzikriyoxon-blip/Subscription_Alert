@@ -87,6 +87,15 @@ android {
             if (hasReleaseSigning) {
                 signingConfig signingConfigs.release
             }
+
+            // IMPORTANT:
+            // flutter_local_notifications persists scheduled notifications as JSON and uses Gson TypeToken.
+            // When R8/ProGuard removes generic signature metadata, it can crash at runtime with:
+            // "TypeToken must be created with a type argument ... make sure that generic signatures are preserved"
+            // These settings enable shrinking and apply android/app/proguard-rules.pro to preserve signatures.
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 }
