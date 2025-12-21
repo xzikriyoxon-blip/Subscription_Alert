@@ -1,11 +1,13 @@
 import 'dart:async' show Zone, runZonedGuarded;
 import 'dart:ui' show PlatformDispatcher;
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'firebase_options.dart';
+import 'models/subscription.dart';
 import 'providers/auth_provider.dart';
 import 'providers/subscription_providers.dart';
 import 'screens/home_screen.dart';
@@ -13,6 +15,7 @@ import 'screens/login_screen.dart';
 import 'services/notification_service.dart';
 import 'services/theme_service.dart';
 import 'services/ad_service.dart';
+import 'services/widget_service.dart';
 import 'providers/premium_providers.dart';
 
 /// Entry point of the Subscription Alert application.
@@ -274,10 +277,46 @@ class AuthWrapper extends ConsumerStatefulWidget {
 }
 
 class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingObserver {
+  final WidgetService _widgetService = WidgetService();
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+
+    // Keep home-screen widget in sync with subscriptions.
+    // NOTE: This is Android-only in practice, but calling it elsewhere is harmless.
+    _widgetService.initialize().catchError((e) {
+      debugPrint('AuthWrapper: WidgetService init failed (continuing): $e');
+    });
+
+    ref.listen<List<Subscription>>(subscriptionsProvider, (previous, next) async {
+      try {
+        final baseCurrency = ref.read(baseCurrencyProvider);
+        final totalMonthly = ref.read(totalMonthlyCostProvider);
+        await _widgetService.updateWidget(
+          subscriptions: next,
+          baseCurrency: baseCurrency,
+          totalMonthlyInBaseCurrency: totalMonthly,
+          isPremium: ref.read(isPremiumProvider),
+        );
+      } catch (e) {
+        debugPrint('AuthWrapper: Failed to update widget: $e');
+      }
+    });
+
+    ref.listen<AsyncValue<User?>>(authStateProvider, (prev, next) async {
+      final wasSignedIn = prev?.valueOrNull != null;
+      final isSignedIn = next.valueOrNull != null;
+      if (wasSignedIn && !isSignedIn) {
+        try {
+          await _widgetService.clearWidgetData();
+        } catch (e) {
+          debugPrint('AuthWrapper: Failed to clear widget data: $e');
+        }
+      }
+    });
+
     // Schedule notification rescheduling after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       () async {

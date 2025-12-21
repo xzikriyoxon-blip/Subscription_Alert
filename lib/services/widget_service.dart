@@ -8,7 +8,8 @@ import '../models/subscription.dart';
 /// The widget displays upcoming subscription renewals and monthly spending totals.
 class WidgetService {
   static const String _androidWidgetName = 'SubscriptionWidgetProvider';
-  static const String _qualifiedAndroidName = 'com.example.subscription_alert.SubscriptionWidgetProvider';
+  static const String _qualifiedAndroidName =
+      'com.xzikriyoxon.subscriptionalert.SubscriptionWidgetProvider';
   
   /// Initialize the widget service.
   Future<void> initialize() async {

@@ -81,18 +81,18 @@ class UserProfileService {
 
   /// Updates user's base currency.
   Future<void> updateBaseCurrency(String userId, String currency) async {
-    await _usersRef.doc(userId).update({
+    await _usersRef.doc(userId).set({
       'baseCurrency': currency,
       'updatedAt': Timestamp.fromDate(DateTime.now()),
-    });
+    }, SetOptions(merge: true));
   }
 
   /// Updates user's theme mode.
   Future<void> updateThemeMode(String userId, String themeMode) async {
-    await _usersRef.doc(userId).update({
+    await _usersRef.doc(userId).set({
       'themeMode': themeMode,
       'updatedAt': Timestamp.fromDate(DateTime.now()),
-    });
+    }, SetOptions(merge: true));
   }
 
   /// Updates calendar sync settings.
@@ -101,11 +101,11 @@ class UserProfileService {
     required bool enabled,
     String? calendarId,
   }) async {
-    await _usersRef.doc(userId).update({
+    await _usersRef.doc(userId).set({
       'calendarSyncEnabled': enabled,
       'calendarId': calendarId,
       'updatedAt': Timestamp.fromDate(DateTime.now()),
-    });
+    }, SetOptions(merge: true));
   }
 
   /// Grants lifetime premium to a user (after purchase).

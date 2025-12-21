@@ -397,6 +397,47 @@ class SettingsScreen extends ConsumerWidget {
     bool isEnabled,
     dynamic strings,
   ) {
+    final controller = ref.read(premiumControllerProvider);
+    final canUseFeature = isPremium && controller != null;
+
+    Future<void> setEnabled(bool value) async {
+      if (!isPremium) {
+        _showPremiumDialog(context, strings.calendarSyncPremiumOnly, strings);
+        return;
+      }
+
+      if (controller == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please sign in to continue')),
+        );
+        return;
+      }
+
+      try {
+        if (value) {
+          // Request Google Calendar permissions before enabling.
+          final calendarService = ref.read(calendarSyncServiceProvider);
+          final ok = await calendarService.requestPermissions();
+          if (!ok) {
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Calendar permission was not granted')),
+            );
+            return;
+          }
+
+          await controller.setCalendarSync(enabled: true, calendarId: 'primary');
+        } else {
+          await controller.setCalendarSync(enabled: false);
+        }
+      } catch (e) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update calendar sync: $e')),
+        );
+      }
+    }
+
     return Card(
       child: ListTile(
         leading: Icon(
@@ -413,21 +454,24 @@ class SettingsScreen extends ConsumerWidget {
           ],
         ),
         subtitle: Text(
-          isPremium
-              ? (isEnabled ? 'Calendar sync is enabled' : 'Tap to enable')
-              : strings.calendarSyncPremiumOnly,
+          !isPremium
+              ? strings.calendarSyncPremiumOnly
+              : (controller == null
+                  ? 'Sign in to enable'
+                  : (isEnabled ? 'Calendar sync is enabled' : 'Tap to enable')),
         ),
         trailing: isPremium
             ? Switch(
                 value: isEnabled,
-                onChanged: (value) async {
-                  final controller = ref.read(premiumControllerProvider);
-                  await controller?.setCalendarSync(enabled: value);
-                },
+                onChanged: canUseFeature ? (value) => setEnabled(value) : null,
               )
             : const Icon(Icons.lock, color: Colors.grey),
         onTap: isPremium
-            ? null
+            ? (canUseFeature ? () => setEnabled(!isEnabled) : () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please sign in to continue')),
+                );
+              })
             : () => _showPremiumDialog(
                 context, strings.calendarSyncPremiumOnly, strings),
       ),

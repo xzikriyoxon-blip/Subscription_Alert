@@ -32,6 +32,9 @@ class UsageTrackerService {
       final result = await _channel.invokeMethod<bool>('hasUsagePermission');
       _permissionGranted = result ?? false;
       return _permissionGranted;
+    } on MissingPluginException catch (e) {
+      debugPrint('UsageTrackerService: Missing platform implementation: $e');
+      return false;
     } on PlatformException catch (e) {
       debugPrint('UsageTrackerService: Error checking permission: $e');
       return false;
@@ -46,6 +49,9 @@ class UsageTrackerService {
     try {
       final result = await _channel.invokeMethod<bool>('requestUsagePermission');
       return result ?? false;
+    } on MissingPluginException catch (e) {
+      debugPrint('UsageTrackerService: Missing platform implementation: $e');
+      return false;
     } on PlatformException catch (e) {
       debugPrint('UsageTrackerService: Error requesting permission: $e');
       return false;
@@ -79,6 +85,9 @@ class UsageTrackerService {
       return result
           .map((item) => AppUsageEntry.fromMap(Map<String, dynamic>.from(item as Map)))
           .toList();
+    } on MissingPluginException catch (e) {
+      debugPrint('UsageTrackerService: Missing platform implementation: $e');
+      return [];
     } on PlatformException catch (e) {
       debugPrint('UsageTrackerService: Error getting app usage: $e');
       return [];
