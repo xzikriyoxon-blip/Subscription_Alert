@@ -282,7 +282,7 @@ class SpendHealthScreen extends ConsumerWidget {
                 child: _StatCard(
                   icon: Icons.calendar_month,
                   label: strings.yearlyProjection,
-                  value: '$baseCurrency ${yearlyProjection.toStringAsFixed(0)}',
+                  value: '$baseCurrency ${yearlyProjection.toStringAsFixed(2)}',
                   color: Colors.purple,
                 ),
               ),

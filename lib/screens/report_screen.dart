@@ -525,7 +525,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
 
     try {
       File? file;
-      const currencySymbol = '\$'; // TODO: Get from user settings
+      final baseCurrency = ref.read(baseCurrencyProvider);
 
       switch (_selectedReportType) {
         case 'monthly':
@@ -533,14 +533,14 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
             subscriptions: subscriptions.cast(),
             month: _selectedMonth,
             year: _selectedYear,
-            currencySymbol: currencySymbol,
+            currencyCode: baseCurrency,
           );
           break;
         case 'yearly':
           file = await _pdfService.generateYearlyReport(
             subscriptions: subscriptions.cast(),
             year: _selectedYear,
-            currencySymbol: currencySymbol,
+            currencyCode: baseCurrency,
           );
           break;
         case 'custom':
@@ -548,7 +548,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
             subscriptions: subscriptions.cast(),
             startDate: _customStartDate,
             endDate: _customEndDate,
-            currencySymbol: currencySymbol,
+            currencyCode: baseCurrency,
           );
           break;
       }

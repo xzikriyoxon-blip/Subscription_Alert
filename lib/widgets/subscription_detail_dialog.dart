@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../models/currency.dart';
 import '../models/subscription.dart';
 import '../models/subscription_brand.dart';
+import 'brand_logo.dart';
 
 /// Shows a dialog with subscription details and actions.
 class SubscriptionDetailDialog extends StatelessWidget {
@@ -26,7 +28,12 @@ class SubscriptionDetailDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('MMM d, yyyy');
-    final numberFormat = NumberFormat('#,##0', 'en_US');
+    final numberFormat = NumberFormat('#,##0.00', 'en_US');
+
+    // Get brand for logo
+    final brand = subscription.brandId != null
+        ? SubscriptionBrands.getById(subscription.brandId!)
+        : SubscriptionBrands.getByName(subscription.name);
 
     // Try to find cancellation link
     String? cancelUrl;
@@ -56,29 +63,15 @@ class SubscriptionDetailDialog extends StatelessWidget {
               child: Column(
                 children: [
                   // Icon
-                  Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      color: subscription.isCancelled
-                          ? Colors.grey[200]
-                          : Colors.blue[100],
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Center(
-                      child: Text(
-                        subscription.name.isNotEmpty
-                            ? subscription.name[0].toUpperCase()
-                            : '?',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: subscription.isCancelled
-                              ? Colors.grey[600]
-                              : Colors.blue[700],
-                        ),
-                      ),
-                    ),
+                  BrandLogo(
+                    brandId: subscription.brandId,
+                    brandName: brand?.name ?? subscription.name,
+                    iconUrl: brand?.iconUrl,
+                    size: 64,
+                    borderRadius: 16,
+                    backgroundColor: subscription.isCancelled
+                        ? Colors.grey[200]
+                        : Colors.blue[100],
                   ),
                   const SizedBox(height: 12),
                   // Name
@@ -125,7 +118,7 @@ class SubscriptionDetailDialog extends StatelessWidget {
                     icon: Icons.attach_money,
                     label: 'Price',
                     value:
-                        '${numberFormat.format(subscription.price.round())} ${subscription.currency}',
+                    '${Currencies.getSymbol(subscription.currency)}${numberFormat.format(subscription.price)}',
                   ),
                   const SizedBox(height: 12),
                   _DetailRow(

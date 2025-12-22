@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../models/currency.dart';
 import '../models/subscription_history.dart';
 import '../providers/subscription_providers.dart';
 import 'settings_screen.dart';
@@ -111,7 +112,7 @@ class HistoryScreen extends ConsumerWidget {
 
   Widget _buildStatsSection(BuildContext context, WidgetRef ref, HistoryStats stats) {
     final strings = ref.watch(stringsProvider);
-    final numberFormat = NumberFormat('#,##0.##', 'en_US');
+    final numberFormat = NumberFormat('#,##0.00', 'en_US');
     return Container(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -230,7 +231,7 @@ class _HistoryListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('MMM d, yyyy');
-    final numberFormat = NumberFormat('#,##0.##', 'en_US');
+    final numberFormat = NumberFormat('#,##0.00', 'en_US');
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -259,7 +260,7 @@ class _HistoryListItem extends StatelessWidget {
           ),
         ),
         trailing: Text(
-          '${numberFormat.format(record.amount)} ${record.currency}',
+          '${Currencies.getSymbol(record.currency)}${numberFormat.format(record.amount)}',
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,

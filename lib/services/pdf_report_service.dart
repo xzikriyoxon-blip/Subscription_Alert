@@ -4,6 +4,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
 import 'package:open_file/open_file.dart' as open_file;
+import '../models/currency.dart';
 import '../models/subscription.dart';
 
 /// Report type for PDF generation
@@ -17,14 +18,14 @@ class ReportData {
   final DateTime startDate;
   final DateTime endDate;
   final List<Subscription> subscriptions;
-  final String currencySymbol;
+  final String currencyCode;
   final ReportType reportType;
 
   ReportData({
     required this.startDate,
     required this.endDate,
     required this.subscriptions,
-    required this.currencySymbol,
+    required this.currencyCode,
     required this.reportType,
   });
 
@@ -118,7 +119,7 @@ class PDFReportService {
     required List<Subscription> subscriptions,
     required int month,
     required int year,
-    required String currencySymbol,
+    required String currencyCode,
   }) async {
     final startDate = DateTime(year, month, 1);
     final endDate = DateTime(year, month + 1, 0); // Last day of month
@@ -127,7 +128,7 @@ class PDFReportService {
       startDate: startDate,
       endDate: endDate,
       subscriptions: subscriptions.where((s) => !s.isCancelled).toList(),
-      currencySymbol: currencySymbol,
+      currencyCode: currencyCode,
       reportType: ReportType.monthly,
     );
 
@@ -139,7 +140,7 @@ class PDFReportService {
   Future<File?> generateYearlyReport({
     required List<Subscription> subscriptions,
     required int year,
-    required String currencySymbol,
+    required String currencyCode,
   }) async {
     final startDate = DateTime(year, 1, 1);
     final endDate = DateTime(year, 12, 31);
@@ -148,7 +149,7 @@ class PDFReportService {
       startDate: startDate,
       endDate: endDate,
       subscriptions: subscriptions.where((s) => !s.isCancelled).toList(),
-      currencySymbol: currencySymbol,
+      currencyCode: currencyCode,
       reportType: ReportType.yearly,
     );
 
@@ -160,13 +161,13 @@ class PDFReportService {
     required List<Subscription> subscriptions,
     required DateTime startDate,
     required DateTime endDate,
-    required String currencySymbol,
+    required String currencyCode,
   }) async {
     final reportData = ReportData(
       startDate: startDate,
       endDate: endDate,
       subscriptions: subscriptions.where((s) => !s.isCancelled).toList(),
-      currencySymbol: currencySymbol,
+      currencyCode: currencyCode,
       reportType: ReportType.monthly, // Custom uses monthly-style format
     );
 
@@ -182,8 +183,12 @@ class PDFReportService {
     try {
       final pdf = pw.Document();
       final dateFormat = DateFormat('MMM d, yyyy');
-      final currencyFormat =
-          NumberFormat.currency(symbol: data.currencySymbol, decimalDigits: 2);
+      final symbol = Currencies.getSymbol(data.currencyCode);
+      final currencyFormat = NumberFormat.currency(
+        name: data.currencyCode,
+        symbol: symbol,
+        decimalDigits: 2,
+      );
 
       // Colors
       const primaryColor = PdfColor.fromInt(0xFF2196F3);

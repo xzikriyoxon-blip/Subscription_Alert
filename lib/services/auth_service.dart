@@ -21,12 +21,51 @@ class AuthService {
   /// Returns the currently signed-in user, or null if not signed in.
   User? get currentUser => _firebaseAuth.currentUser;
 
+  /// Attempts to restore a previous Google sign-in silently.
+  ///
+  /// Why this exists:
+  /// - Firebase Auth should normally persist on mobile/desktop, but some setups
+  ///   (or certain platform/plugin edge cases) can result in `currentUser`
+  ///   being null after a cold start.
+  /// - Google Sign-In can often restore the last account without UI.
+  ///
+  /// This method:
+  /// - does nothing if a Firebase user already exists
+  /// - does nothing on web (handled via Firebase persistence)
+  /// - never shows UI (silent only)
+  Future<void> restorePreviousSignInIfPossible() async {
+    if (kIsWeb) return;
+    if (_firebaseAuth.currentUser != null) return;
+
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signInSilently();
+      if (googleUser == null) return;
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final OAuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      await _firebaseAuth.signInWithCredential(credential);
+    } catch (_) {
+      // Ignore restore failures; user can always sign in manually.
+    }
+  }
+
   /// Signs in the user with Google.
   /// 
   /// Returns the [UserCredential] on success, throws an exception on failure.
   Future<UserCredential?> signInWithGoogle() async {
     try {
       if (kIsWeb) {
+        // Ensure persistence so the user stays signed in across reloads.
+        try {
+          await _firebaseAuth.setPersistence(Persistence.LOCAL);
+        } catch (_) {
+          // Ignore if unsupported.
+        }
+
         // Web: Use Firebase Auth directly with popup
         final GoogleAuthProvider googleProvider = GoogleAuthProvider();
         googleProvider.addScope('email');
@@ -65,10 +104,16 @@ class AuthService {
   /// Signs out the current user from both Firebase and Google.
   Future<void> signOut() async {
     try {
-      await Future.wait([
-        _firebaseAuth.signOut(),
-        _googleSignIn.signOut(),
-      ]);
+      await _firebaseAuth.signOut();
+
+      // Ensure Google Sign-In session is cleared so we don't immediately
+      // restore via signInSilently on next launch.
+      try {
+        await _googleSignIn.signOut();
+      } catch (_) {}
+      try {
+        await _googleSignIn.disconnect();
+      } catch (_) {}
     } catch (e) {
       throw AuthException('Sign out failed: $e');
     }

@@ -16,6 +16,7 @@ import 'services/notification_service.dart';
 import 'services/theme_service.dart';
 import 'services/ad_service.dart';
 import 'services/widget_service.dart';
+import 'services/auth_service.dart';
 import 'providers/premium_providers.dart';
 
 /// Entry point of the Subscription Alert application.
@@ -118,6 +119,27 @@ class _BootstrapAppState extends State<_BootstrapApp> {
       ).timeout(const Duration(seconds: 20));
     } else {
       await Firebase.initializeApp().timeout(const Duration(seconds: 20));
+    }
+
+    // Auth persistence
+    // On web/desktop, make persistence explicit so users remain signed in until
+    // they sign out.
+    try {
+      await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
+    } catch (e) {
+      // Not supported on all platforms (mobile usually manages persistence).
+      debugPrint('Bootstrap: setPersistence not supported (continuing): $e');
+    }
+
+    // Silent restore (mobile/desktop): if Firebase user is missing on cold
+    // start, try to restore a cached Google sign-in without prompting.
+    // This helps ensure "stay signed in until sign out".
+    try {
+      await AuthService()
+          .restorePreviousSignInIfPossible()
+          .timeout(const Duration(seconds: 10));
+    } catch (e) {
+      debugPrint('Bootstrap: silent sign-in restore failed (continuing): $e');
     }
 
     // Notifications (required for reminders, but should not brick the app).

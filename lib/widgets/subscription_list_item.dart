@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../models/currency.dart';
 import '../models/subscription.dart';
 import '../models/subscription_brand.dart';
+import 'brand_logo.dart';
 
 /// A list item widget displaying a subscription's details.
 /// 
@@ -32,7 +34,7 @@ class SubscriptionListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('MMM d, yyyy');
-    final numberFormat = NumberFormat('#,##0.##', 'en_US');
+    final numberFormat = NumberFormat('#,##0.00', 'en_US');
     final status = subscription.status;
     
     // Get brand for logo
@@ -65,39 +67,13 @@ class SubscriptionListItem extends StatelessWidget {
                   color: _getStatusColor(status).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: brand != null
-                      ? Image.network(
-                          brand.iconUrl,
-                          width: 48,
-                          height: 48,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Center(
-                            child: Text(
-                              subscription.name.isNotEmpty 
-                                  ? subscription.name[0].toUpperCase() 
-                                  : '?',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: _getStatusColor(status),
-                              ),
-                            ),
-                          ),
-                        )
-                      : Center(
-                          child: Text(
-                            subscription.name.isNotEmpty 
-                                ? subscription.name[0].toUpperCase() 
-                                : '?',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: _getStatusColor(status),
-                            ),
-                          ),
-                        ),
+                child: BrandLogo(
+                  brandId: subscription.brandId,
+                  brandName: brand?.name ?? subscription.name,
+                  iconUrl: brand?.iconUrl,
+                  size: 48,
+                  borderRadius: 12,
+                  backgroundColor: _getStatusColor(status).withValues(alpha: 0.10),
                 ),
               ),
               const SizedBox(width: 16),
@@ -135,7 +111,7 @@ class SubscriptionListItem extends StatelessWidget {
                     Row(
                       children: [
                         Text(
-                          '${numberFormat.format(subscription.price)} ${subscription.currency}',
+                          '${Currencies.getSymbol(subscription.currency)}${numberFormat.format(subscription.price)}',
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.grey[600],
@@ -144,7 +120,7 @@ class SubscriptionListItem extends StatelessWidget {
                         ),
                         if (convertedAmount != null && convertedCurrency != null) ...[
                           Text(
-                            ' (~${numberFormat.format(convertedAmount!)} $convertedCurrency)',
+                            ' (~${Currencies.getSymbol(convertedCurrency!)}${numberFormat.format(convertedAmount!)})',
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.amber[700],

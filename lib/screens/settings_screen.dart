@@ -4,7 +4,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_language.dart';
 import '../models/currency.dart';
 import '../l10n/app_strings.dart';
+import '../providers/notification_preferences_provider.dart';
 import '../providers/premium_providers.dart';
+import '../providers/subscription_providers.dart';
+import '../services/notification_service.dart';
 import '../services/theme_service.dart';
 import 'report_screen.dart';
 import 'usage_analytics_screen.dart';
@@ -53,6 +56,7 @@ class SettingsScreen extends ConsumerWidget {
     final baseCurrency = ref.watch(baseCurrencyProvider);
     final themeMode = ref.watch(appThemeModeProvider);
     final calendarSyncEnabled = ref.watch(calendarSyncEnabledProvider);
+    final notificationPrefs = ref.watch(notificationPreferencesProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -153,6 +157,24 @@ class SettingsScreen extends ConsumerWidget {
 
           const SizedBox(height: 32),
 
+          // Notifications (Custom)
+          const Text(
+            'Notifications',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Choose reminder time and how many days before payment to notify you',
+            style: TextStyle(color: Colors.grey),
+          ),
+          const SizedBox(height: 16),
+          _buildNotificationSection(context, ref, notificationPrefs),
+
+          const SizedBox(height: 32),
+
           // Usage Analytics Section (Premium)
           Text(
             strings.usageAnalytics,
@@ -218,6 +240,160 @@ class SettingsScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Widget _buildNotificationSection(
+    BuildContext context,
+    WidgetRef ref,
+    dynamic notificationPrefs,
+  ) {
+    final notifier = ref.read(notificationPreferencesProvider.notifier);
+
+    String formatTime(int hour, int minute) {
+      final h12 = hour % 12 == 0 ? 12 : hour % 12;
+      final ampm = hour < 12 ? 'AM' : 'PM';
+      return '${h12.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $ampm';
+    }
+
+    Future<void> rescheduleAll() async {
+      final controller = ref.read(subscriptionControllerProvider);
+      final subs = ref.read(subscriptionsProvider);
+      if (controller != null && subs.isNotEmpty) {
+        await controller.rescheduleAllNotifications(subs);
+      }
+    }
+
+    return Card(
+      child: Column(
+        children: [
+          SwitchListTile(
+            title: const Text('Enable notifications'),
+            subtitle: const Text('Turn subscription reminders on/off'),
+            value: notificationPrefs.enabled as bool,
+            onChanged: (v) async {
+              await notifier.setEnabled(v);
+              if (v) {
+                await NotificationService().requestPermissions();
+              }
+              await rescheduleAll();
+            },
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.schedule),
+            title: const Text('Reminder time'),
+            subtitle: Text(
+              formatTime(
+                notificationPrefs.hour as int,
+                notificationPrefs.minute as int,
+              ),
+            ),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () async {
+              final picked = await showTimePicker(
+                context: context,
+                initialTime: TimeOfDay(
+                  hour: notificationPrefs.hour as int,
+                  minute: notificationPrefs.minute as int,
+                ),
+              );
+              if (picked != null) {
+                await notifier.setTime(hour: picked.hour, minute: picked.minute);
+                await rescheduleAll();
+              }
+            },
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.notifications_active_outlined),
+            title: const Text('Remind me'),
+            subtitle: Text(
+              _daysBeforeLabel(notificationPrefs.daysBefore as List<int>),
+            ),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () async {
+              final selected = List<int>.from(notificationPrefs.daysBefore as List<int>);
+              final result = await showDialog<List<int>>(
+                context: context,
+                builder: (context) {
+                  final options = <int>[0, 1, 2, 3, 5, 7, 14, 30];
+                  return StatefulBuilder(
+                    builder: (context, setState) {
+                      return AlertDialog(
+                        title: const Text('Choose reminder days'),
+                        content: SingleChildScrollView(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              for (final d in options)
+                                CheckboxListTile(
+                                  value: selected.contains(d),
+                                  title: Text(
+                                    d == 0
+                                        ? 'On payment day'
+                                        : '$d day${d == 1 ? '' : 's'} before',
+                                  ),
+                                  onChanged: (v) {
+                                    setState(() {
+                                      if (v == true) {
+                                        selected.add(d);
+                                      } else {
+                                        selected.remove(d);
+                                      }
+                                      selected.sort((a, b) => b.compareTo(a));
+                                    });
+                                  },
+                                ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Tip: include "On payment day" to get a due-date alert.',
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(null),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              final normalized = <int>{
+                                for (final x in selected)
+                                  if (x >= 0) x,
+                              }.toList()
+                                ..sort((a, b) => b.compareTo(a));
+                              Navigator.of(context).pop(normalized);
+                            },
+                            child: const Text('Save'),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                },
+              );
+
+              if (result != null) {
+                await notifier.setDaysBefore(
+                  result.isNotEmpty ? result : <int>[3, 1, 0],
+                );
+                await rescheduleAll();
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _daysBeforeLabel(List<int> days) {
+    if (days.isEmpty) return 'No reminders selected';
+    final sorted = List<int>.from(days)..sort((a, b) => b.compareTo(a));
+    return sorted
+        .map((d) => d == 0 ? 'Payment day' : '${d}d before')
+        .join(', ');
   }
 
   Widget _buildPremiumCard(

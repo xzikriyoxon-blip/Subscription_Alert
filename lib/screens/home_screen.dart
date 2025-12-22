@@ -151,7 +151,7 @@ class HomeScreen extends ConsumerWidget {
       }
     }
     
-    final numberFormat = NumberFormat('#,##0.##', 'en_US');
+    final numberFormat = NumberFormat('#,##0.00', 'en_US');
 
     return Column(
       children: [

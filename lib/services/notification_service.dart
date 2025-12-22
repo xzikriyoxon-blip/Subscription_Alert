@@ -4,6 +4,8 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
 import '../models/subscription.dart';
 import 'package:intl/intl.dart';
+import '../models/notification_preferences.dart';
+import 'notification_preferences_store.dart';
 
 /// Service class for managing local notifications.
 /// 
@@ -17,6 +19,8 @@ class NotificationService {
 
   final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
+
+  final NotificationPreferencesStore _prefsStore = NotificationPreferencesStore();
 
   bool _isInitialized = false;
 
@@ -118,26 +122,82 @@ class NotificationService {
     
     if (android != null) {
       final granted = await android.requestNotificationsPermission();
+
+      // Android 12+: exact alarms require special permission on many devices.
+      // flutter_local_notifications exposes an API for this on newer versions.
+      // Use a dynamic call so compilation stays compatible if the method isn't
+      // present on some platforms.
+      try {
+        final dynamic androidDynamic = android;
+        await androidDynamic.requestExactAlarmsPermission();
+      } catch (_) {
+        // Ignore if not supported or denied.
+      }
+
       return granted ?? false;
     }
 
     return true;
   }
 
-  /// Generates a unique notification ID from subscription ID.
-  /// 
-  /// Uses hashCode to create a stable integer ID.
-  /// Adds an offset for the "3 days before" notification.
-  int _generateNotificationId(String subscriptionId, {bool isReminder = false}) {
+  /// Generates a unique notification ID for a given subscription and
+  /// reminder offset (days before).
+  ///
+  /// Uses blocks of 100k per "daysBefore" value to avoid collisions.
+  /// Example: baseId 12345
+  /// - daysBefore 0 => 112345
+  /// - daysBefore 1 => 212345
+  /// - daysBefore 3 => 412345
+  int _generateNotificationIdForDaysBefore(String subscriptionId, int daysBefore) {
     final baseId = subscriptionId.hashCode.abs() % 100000;
-    return isReminder ? baseId : baseId + 100000;
+    final safeDays = daysBefore < 0 ? 0 : daysBefore;
+    return baseId + ((safeDays + 1) * 100000);
+  }
+
+  // Legacy IDs from older versions of the app (2-notification scheme).
+  // Keep these so we can cancel them when users upgrade.
+  int _legacyIdThreeDaysBefore(String subscriptionId) {
+    final baseId = subscriptionId.hashCode.abs() % 100000;
+    return baseId;
+  }
+
+  int _legacyIdDueDay(String subscriptionId) {
+    final baseId = subscriptionId.hashCode.abs() % 100000;
+    return baseId + 100000;
+  }
+
+  DateTime _scheduleDateForDay({
+    required DateTime day,
+    required DateTime now,
+    required int hour,
+    required int minute,
+  }) {
+    // Standard: user-configured local time.
+    final scheduled = DateTime(day.year, day.month, day.day, hour, minute);
+    if (scheduled.isAfter(now)) return scheduled;
+
+    // If the target day is today but 9 AM has already passed, schedule soon so
+    // the user still gets a reminder.
+    if (_isSameDay(day, now)) {
+      return now.add(const Duration(minutes: 1));
+    }
+
+    // If the target day is in the past, return a past date to signal "skip".
+    return scheduled;
+  }
+
+  String _titleForDaysBefore(int daysBefore) {
+    if (daysBefore <= 0) return 'Subscription payment due today';
+    if (daysBefore == 1) return 'Subscription payment tomorrow';
+    return 'Upcoming subscription payment';
   }
 
   /// Schedules notifications for a subscription.
   /// 
-  /// Creates two notifications:
+  /// Creates three notifications:
   /// 1. Three days before the payment date
-  /// 2. On the payment date
+  /// 2. One day before the payment date
+  /// 3. On the payment date
   /// On web, this is a no-op.
   Future<void> scheduleSubscriptionNotifications(Subscription subscription) async {
     // Skip on web - local notifications not supported
@@ -145,6 +205,13 @@ class NotificationService {
     
     if (!_isInitialized) {
       await initialize();
+    }
+
+    final preferences = await _prefsStore.load();
+    if (!preferences.enabled) {
+      // Still cancel any existing schedules if user disabled notifications.
+      await cancelSubscriptionNotifications(subscription);
+      return;
     }
 
     // Cancel any existing notifications for this subscription
@@ -177,67 +244,47 @@ class NotificationService {
     final now = DateTime.now();
     final paymentDate = subscription.nextPaymentDate;
 
-    // Schedule notification 3 days before payment
-    final reminderDate = paymentDate.subtract(const Duration(days: 3));
-    if (reminderDate.isAfter(now)) {
-      final scheduledReminder = tz.TZDateTime.from(
-        DateTime(
-          reminderDate.year,
-          reminderDate.month,
-          reminderDate.day,
-          9, // Schedule for 9 AM
-          0,
-        ),
-        tz.local,
+    final scheduledDays = <int>[];
+
+    for (final daysBefore in preferences.daysBefore) {
+      final targetDay = paymentDate.subtract(Duration(days: daysBefore));
+
+      if (!(targetDay.isAfter(now) || _isSameDay(targetDay, now))) {
+        continue;
+      }
+
+      final notificationTime = _scheduleDateForDay(
+        day: targetDay,
+        now: now,
+        hour: preferences.hour,
+        minute: preferences.minute,
       );
 
+      if (!notificationTime.isAfter(now)) {
+        continue;
+      }
+
+      final scheduled = tz.TZDateTime.from(notificationTime, tz.local);
+      final id = _generateNotificationIdForDaysBefore(subscription.id, daysBefore);
+
       await _notifications.zonedSchedule(
-        _generateNotificationId(subscription.id, isReminder: true),
-        'Upcoming subscription payment',
-        '${subscription.name} payment of ${subscription.price.toStringAsFixed(0)} ${subscription.currency} is due on $formattedDate',
-        scheduledReminder,
+        id,
+        _titleForDaysBefore(daysBefore),
+        daysBefore <= 0
+            ? '${subscription.name} payment of ${subscription.price.toStringAsFixed(2)} ${subscription.currency} is due today!'
+            : '${subscription.name} payment of ${subscription.price.toStringAsFixed(2)} ${subscription.currency} is due on $formattedDate',
+        scheduled,
         notificationDetails,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
         payload: subscription.id,
       );
+
+      scheduledDays.add(daysBefore);
     }
 
-    // Schedule notification on payment day
-    if (paymentDate.isAfter(now) || _isSameDay(paymentDate, now)) {
-      // Only schedule if payment date is today or in the future
-      DateTime notificationTime;
-      
-      if (_isSameDay(paymentDate, now)) {
-        // If payment is today, schedule for 1 minute from now (or skip if past 9 AM)
-        notificationTime = now.add(const Duration(minutes: 1));
-      } else {
-        notificationTime = DateTime(
-          paymentDate.year,
-          paymentDate.month,
-          paymentDate.day,
-          9, // Schedule for 9 AM
-          0,
-        );
-      }
-
-      if (notificationTime.isAfter(now)) {
-        final scheduledPayment = tz.TZDateTime.from(notificationTime, tz.local);
-
-        await _notifications.zonedSchedule(
-          _generateNotificationId(subscription.id, isReminder: false),
-          'Subscription payment due today',
-          '${subscription.name} payment of ${subscription.price.toStringAsFixed(0)} ${subscription.currency} is due today!',
-          scheduledPayment,
-          notificationDetails,
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
-          payload: subscription.id,
-        );
-      }
-    }
+    await _prefsStore.saveLastScheduledDays(subscription.id, scheduledDays);
   }
 
   /// Checks if two dates are the same day.
@@ -249,26 +296,44 @@ class NotificationService {
   /// On web, this is a no-op.
   Future<void> cancelSubscriptionNotifications(Subscription subscription) async {
     if (kIsWeb) return;
-    
-    await _notifications.cancel(
-      _generateNotificationId(subscription.id, isReminder: true),
-    );
-    await _notifications.cancel(
-      _generateNotificationId(subscription.id, isReminder: false),
-    );
+
+    // Cancel legacy schedules
+    await _notifications.cancel(_legacyIdThreeDaysBefore(subscription.id));
+    await _notifications.cancel(_legacyIdDueDay(subscription.id));
+
+    // Cancel whatever we last scheduled for this subscription.
+    final lastDays = await _prefsStore.loadLastScheduledDays(subscription.id);
+    final fallback = (await _prefsStore.load()).daysBefore;
+    final daysToCancel = lastDays.isNotEmpty ? lastDays : fallback;
+
+    for (final daysBefore in daysToCancel) {
+      await _notifications.cancel(
+        _generateNotificationIdForDaysBefore(subscription.id, daysBefore),
+      );
+    }
+
+    await _prefsStore.clearLastScheduledDays(subscription.id);
   }
 
   /// Cancels a notification by its ID.
   /// On web, this is a no-op.
   Future<void> cancelNotificationById(String subscriptionId) async {
     if (kIsWeb) return;
-    
-    await _notifications.cancel(
-      _generateNotificationId(subscriptionId, isReminder: true),
-    );
-    await _notifications.cancel(
-      _generateNotificationId(subscriptionId, isReminder: false),
-    );
+
+    await _notifications.cancel(_legacyIdThreeDaysBefore(subscriptionId));
+    await _notifications.cancel(_legacyIdDueDay(subscriptionId));
+
+    final lastDays = await _prefsStore.loadLastScheduledDays(subscriptionId);
+    final fallback = (await _prefsStore.load()).daysBefore;
+    final daysToCancel = lastDays.isNotEmpty ? lastDays : fallback;
+
+    for (final daysBefore in daysToCancel) {
+      await _notifications.cancel(
+        _generateNotificationIdForDaysBefore(subscriptionId, daysBefore),
+      );
+    }
+
+    await _prefsStore.clearLastScheduledDays(subscriptionId);
   }
 
   /// Cancels all scheduled notifications.

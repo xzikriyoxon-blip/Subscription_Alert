@@ -61,7 +61,7 @@ class _AddEditSubscriptionScreenState
     final sub = widget.subscription;
     _nameController = TextEditingController(text: sub?.name ?? '');
     _priceController = TextEditingController(
-      text: sub?.price.toStringAsFixed(0) ?? '',
+      text: sub?.price.toStringAsFixed(2) ?? '',
     );
     _selectedCycle = sub?.cycle ?? 'monthly';
     _selectedCurrency = sub?.currency ?? 'UZS';
@@ -696,7 +696,7 @@ class _AddEditSubscriptionScreenState
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Monthly equivalent: ${(double.tryParse(_priceController.text) ?? 0 / 12).toStringAsFixed(0)} $_selectedCurrency',
+                          'Monthly equivalent: ${((double.tryParse(_priceController.text) ?? 0) / 12).toStringAsFixed(2)} $_selectedCurrency',
                           style: TextStyle(color: Colors.blue[700]),
                         ),
                       ),

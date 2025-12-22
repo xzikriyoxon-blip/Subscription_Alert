@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/subscription_brand.dart';
+import 'brand_logo.dart';
 
 /// A dialog for selecting a subscription brand from the list.
 class BrandSelectionDialog extends StatefulWidget {
@@ -204,35 +205,13 @@ class _BrandCard extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             // Brand logo
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                color: Colors.grey[100],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  brand.iconUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.blue[100],
-                      child: Center(
-                        child: Text(
-                          brand.name.substring(0, 1).toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue[700],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
+            BrandLogo(
+              brandId: brand.id,
+              brandName: brand.name,
+              iconUrl: brand.iconUrl,
+              size: 48,
+              borderRadius: 8,
+              backgroundColor: Colors.grey[100],
             ),
             const SizedBox(height: 8),
             // Brand name
