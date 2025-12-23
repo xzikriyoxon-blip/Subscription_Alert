@@ -10,6 +10,11 @@ class AppStrings {
     'ar': 'الاشتراكات',
     'fr': 'Abonnements',
     'es': 'Suscripciones',
+    'de': 'Abonnements',
+    'pt': 'Assinaturas',
+    'ja': 'サブスクリプション',
+    'tr': 'Abonelikler',
+    'zh': '订阅',
     'ko': '구독',
   });
 
@@ -19,6 +24,11 @@ class AppStrings {
     'ar': 'الإعدادات',
     'fr': 'Paramètres',
     'es': 'Configuración',
+    'de': 'Einstellungen',
+    'pt': 'Configurações',
+    'ja': '設定',
+    'tr': 'Ayarlar',
+    'zh': '设置',
     'ko': '설정',
   });
 
@@ -27,6 +37,11 @@ class AppStrings {
     'ar': 'سجل الدفع',
     'fr': 'Historique des paiements',
     'es': 'Historial de pagos',
+    'de': 'Zahlungsverlauf',
+    'pt': 'Histórico de pagamentos',
+    'ja': '支払い履歴',
+    'tr': 'Ödeme geçmişi',
+    'zh': '付款记录',
     'ko': '결제 내역',
   });
 
@@ -35,6 +50,11 @@ class AppStrings {
     'ar': 'أين تشاهد',
     'fr': 'Où regarder',
     'es': 'Dónde ver',
+    'de': 'Wo ansehen',
+    'pt': 'Onde assistir',
+    'ja': '視聴先',
+    'tr': 'Nerede izlenir',
+    'zh': '在哪里观看',
     'ko': '어디서 볼까',
   });
 
@@ -43,6 +63,11 @@ class AppStrings {
     'ar': 'تسجيل الخروج',
     'fr': 'Déconnexion',
     'es': 'Cerrar sesión',
+    'de': 'Abmelden',
+    'pt': 'Sair',
+    'ja': 'ログアウト',
+    'tr': 'Çıkış yap',
+    'zh': '退出登录',
     'ko': '로그아웃',
   });
 
@@ -51,6 +76,11 @@ class AppStrings {
     'ar': 'إلغاء',
     'fr': 'Annuler',
     'es': 'Cancelar',
+    'de': 'Abbrechen',
+    'pt': 'Cancelar',
+    'ja': 'キャンセル',
+    'tr': 'İptal',
+    'zh': '取消',
     'ko': '취소',
   });
 
@@ -59,6 +89,11 @@ class AppStrings {
     'ar': 'حذف',
     'fr': 'Supprimer',
     'es': 'Eliminar',
+    'de': 'Löschen',
+    'pt': 'Excluir',
+    'ja': '削除',
+    'tr': 'Sil',
+    'zh': '删除',
     'ko': '삭제',
   });
 
@@ -67,6 +102,11 @@ class AppStrings {
     'ar': 'تعديل',
     'fr': 'Modifier',
     'es': 'Editar',
+    'de': 'Bearbeiten',
+    'pt': 'Editar',
+    'ja': '編集',
+    'tr': 'Düzenle',
+    'zh': '编辑',
     'ko': '수정',
   });
 
@@ -75,6 +115,11 @@ class AppStrings {
     'ar': 'حفظ',
     'fr': 'Enregistrer',
     'es': 'Guardar',
+    'de': 'Speichern',
+    'pt': 'Salvar',
+    'ja': '保存',
+    'tr': 'Kaydet',
+    'zh': '保存',
     'ko': '저장',
   });
 
@@ -83,6 +128,11 @@ class AppStrings {
     'ar': 'إضافة',
     'fr': 'Ajouter',
     'es': 'Añadir',
+    'de': 'Hinzufügen',
+    'pt': 'Adicionar',
+    'ja': '追加',
+    'tr': 'Ekle',
+    'zh': '添加',
     'ko': '추가',
   });
 
@@ -91,6 +141,11 @@ class AppStrings {
     'ar': 'بحث',
     'fr': 'Rechercher',
     'es': 'Buscar',
+    'de': 'Suchen',
+    'pt': 'Pesquisar',
+    'ja': '検索',
+    'tr': 'Ara',
+    'zh': '搜索',
     'ko': '검색',
   });
 
@@ -99,6 +154,11 @@ class AppStrings {
     'ar': 'المفضلة',
     'fr': 'Favoris',
     'es': 'Favoritos',
+    'de': 'Favoriten',
+    'pt': 'Favoritos',
+    'ja': 'お気に入り',
+    'tr': 'Favoriler',
+    'zh': '收藏',
     'ko': '즐겨찾기',
   });
 
@@ -107,6 +167,11 @@ class AppStrings {
     'ar': 'لا توجد مفضلات بعد',
     'fr': 'Pas encore de favoris',
     'es': 'Aún no hay favoritos',
+    'de': 'Noch keine Favoriten',
+    'pt': 'Ainda não há favoritos',
+    'ja': 'お気に入りはまだありません',
+    'tr': 'Henüz favori yok',
+    'zh': '暂无收藏',
     'ko': '아직 즐겨찾기가 없습니다',
   });
 
@@ -123,6 +188,11 @@ class AppStrings {
     'ar': 'تمت الإضافة إلى المفضلة',
     'fr': 'Ajouté aux favoris',
     'es': 'Añadido a favoritos',
+    'de': 'Zu Favoriten hinzugefügt',
+    'pt': 'Adicionado aos favoritos',
+    'ja': 'お気に入りに追加しました',
+    'tr': 'Favorilere eklendi',
+    'zh': '已添加到收藏',
     'ko': '즐겨찾기에 추가됨',
   });
 
@@ -131,6 +201,11 @@ class AppStrings {
     'ar': 'تمت الإزالة من المفضلة',
     'fr': 'Retiré des favoris',
     'es': 'Eliminado de favoritos',
+    'de': 'Aus Favoriten entfernt',
+    'pt': 'Removido dos favoritos',
+    'ja': 'お気に入りから削除しました',
+    'tr': 'Favorilerden kaldırıldı',
+    'zh': '已从收藏移除',
     'ko': '즐겨찾기에서 제거됨',
   });
 
@@ -140,6 +215,11 @@ class AppStrings {
     'ar': 'التكلفة الإجمالية',
     'fr': 'Coût total',
     'es': 'Costo total',
+    'de': 'Gesamtkosten',
+    'pt': 'Custo total',
+    'ja': '合計費用',
+    'tr': 'Toplam maliyet',
+    'zh': '总费用',
     'ko': '총 비용',
   });
 
@@ -156,6 +236,11 @@ class AppStrings {
     'ar': 'لا توجد اشتراكات بعد',
     'fr': 'Pas encore d\'abonnements',
     'es': 'Sin suscripciones aún',
+    'de': 'Noch keine Abonnements',
+    'pt': 'Ainda não há assinaturas',
+    'ja': 'まだサブスクリプションがありません',
+    'tr': 'Henüz abonelik yok',
+    'zh': '暂无订阅',
     'ko': '아직 구독이 없습니다',
   });
 
@@ -164,6 +249,11 @@ class AppStrings {
     'ar': 'اضغط على زر + لإضافة أول اشتراك',
     'fr': 'Appuyez sur + pour ajouter votre premier abonnement',
     'es': 'Toca el botón + para añadir tu primera suscripción',
+    'de': 'Tippe auf +, um dein erstes Abo hinzuzufügen',
+    'pt': 'Toque no botão + para adicionar sua primeira assinatura',
+    'ja': '+ ボタンをタップして最初のサブスクリプションを追加します',
+    'tr': 'İlk aboneliğini eklemek için + düğmesine dokun',
+    'zh': '点击 + 按钮添加你的第一个订阅',
     'ko': '+ 버튼을 눌러 첫 구독을 추가하세요',
   });
 
@@ -378,6 +468,11 @@ class AppStrings {
     'ar': 'اللغة',
     'fr': 'Langue',
     'es': 'Idioma',
+    'de': 'Sprache',
+    'pt': 'Idioma',
+    'ja': '言語',
+    'tr': 'Dil',
+    'zh': '语言',
     'ko': '언어',
   });
 
@@ -386,6 +481,11 @@ class AppStrings {
     'ar': 'اختر لغتك المفضلة',
     'fr': 'Sélectionnez votre langue préférée',
     'es': 'Selecciona tu idioma preferido',
+    'de': 'Wähle deine bevorzugte Sprache',
+    'pt': 'Selecione seu idioma preferido',
+    'ja': '希望の言語を選択してください',
+    'tr': 'Tercih ettiğiniz dili seçin',
+    'zh': '选择你的首选语言',
     'ko': '선호하는 언어를 선택하세요',
   });
 
@@ -418,6 +518,11 @@ class AppStrings {
     'ar': 'تم تغيير اللغة إلى $lang',
     'fr': 'Langue changée en $lang',
     'es': 'Idioma cambiado a $lang',
+    'de': 'Sprache geändert zu $lang',
+    'pt': 'Idioma alterado para $lang',
+    'ja': '言語が$langに変更されました',
+    'tr': 'Dil $lang olarak değiştirildi',
+    'zh': '语言已更改为$lang',
     'ko': '언어가 $lang(으)로 변경되었습니다',
   });
 
@@ -2304,6 +2409,16 @@ class AppStrings {
 
   // Helper method to get translation
   String _t(Map<String, String> translations) {
-    return translations[code] ?? translations['en'] ?? '';
+    // Exact match first (e.g., zh_TW).
+    final exact = translations[code];
+    if (exact != null) return exact;
+
+    // Fallback to base language (e.g., zh from zh_TW, pt from pt_BR).
+    final base = code.split('_').first;
+    final baseHit = translations[base];
+    if (baseHit != null) return baseHit;
+
+    // Final fallback to English.
+    return translations['en'] ?? '';
   }
 }

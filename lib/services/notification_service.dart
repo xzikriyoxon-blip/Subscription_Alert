@@ -4,7 +4,6 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
 import '../models/subscription.dart';
 import 'package:intl/intl.dart';
-import '../models/notification_preferences.dart';
 import 'notification_preferences_store.dart';
 
 /// Service class for managing local notifications.

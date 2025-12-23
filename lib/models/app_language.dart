@@ -114,7 +114,18 @@ class AppLanguages {
   ];
 
   /// Supported UI languages for the app.
-  static const List<String> supportedCodes = ['en', 'ar', 'fr', 'es', 'ko'];
+  static const List<String> supportedCodes = [
+    'en',
+    'ar',
+    'fr',
+    'es',
+    'de',
+    'pt',
+    'ja',
+    'tr',
+    'zh',
+    'ko',
+  ];
   
   /// Get supported UI languages.
   static List<AppLanguage> get supportedLanguages {
@@ -123,6 +134,11 @@ class AppLanguages {
       const AppLanguage(code: 'ar', name: 'Arabic', nativeName: 'العربية', flag: '🇸🇦'),
       const AppLanguage(code: 'fr', name: 'French', nativeName: 'Français', flag: '🇫🇷'),
       const AppLanguage(code: 'es', name: 'Spanish', nativeName: 'Español', flag: '🇪🇸'),
+      const AppLanguage(code: 'de', name: 'German', nativeName: 'Deutsch', flag: '🇩🇪'),
+      const AppLanguage(code: 'pt', name: 'Portuguese', nativeName: 'Português', flag: '🇵🇹'),
+      const AppLanguage(code: 'ja', name: 'Japanese', nativeName: '日本語', flag: '🇯🇵'),
+      const AppLanguage(code: 'tr', name: 'Turkish', nativeName: 'Türkçe', flag: '🇹🇷'),
+      const AppLanguage(code: 'zh', name: 'Chinese (Simplified)', nativeName: '中文', flag: '🇨🇳'),
       const AppLanguage(code: 'ko', name: 'Korean', nativeName: '한국어', flag: '🇰🇷'),
     ];
   }
