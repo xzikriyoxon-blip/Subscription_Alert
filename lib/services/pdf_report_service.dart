@@ -1,13 +1,16 @@
+// ignore_for_file: prefer_const_constructors
+
 import 'dart:io';
+import 'dart:developer' as dev;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
 import 'package:open_file/open_file.dart' as open_file;
 import 'package:printing/printing.dart';
-import '../models/currency.dart';
 import '../models/subscription.dart';
 import '../models/subscription_brand.dart';
+import 'pdf_currency_formatter.dart';
 
 /// Report type for PDF generation
 enum ReportType {
@@ -239,9 +242,9 @@ class PDFReportService {
       final pdf = pw.Document();
       final dateFormat = DateFormat('MMM d, yyyy');
 
-      // Use a Unicode-capable font so currency symbols like "€" render correctly.
-      // The default built-in PDF fonts may substitute/misrender such characters.
+      // Use Unicode-capable fonts so non-Latin text renders correctly in the PDF.
       pw.ThemeData? theme;
+      final List<pw.Font> fontFallback = [];
       try {
         final base = await PdfGoogleFonts.notoSansRegular();
         final bold = await PdfGoogleFonts.notoSansBold();
@@ -253,6 +256,24 @@ class PDFReportService {
           italic: italic,
           boldItalic: boldItalic,
         );
+
+        // Add extra fallback fonts for currency symbols and some non-Latin scripts.
+        // This significantly reduces "missing glyph" boxes in the exported PDF.
+        // If any of these fail to download, we still keep the theme above.
+        try {
+          fontFallback.add(await PdfGoogleFonts.notoSansSymbols2Regular());
+        } catch (_) {}
+        try {
+          // Better Arabic coverage for currency symbols/letters in our currency list.
+          fontFallback.add(await PdfGoogleFonts.notoNaskhArabicRegular());
+        } catch (_) {}
+        try {
+          fontFallback.add(await PdfGoogleFonts.notoSansDevanagariRegular());
+        } catch (_) {}
+        try {
+          fontFallback.add(await PdfGoogleFonts.notoSansBengaliRegular());
+        } catch (_) {}
+
       } catch (_) {
         // If font download fails (offline, etc.), fall back to default fonts.
         theme = null;
@@ -260,30 +281,23 @@ class PDFReportService {
 
       // IMPORTANT:
       // We currently do not convert between currencies in the PDF.
-      // Therefore, we must not display amounts using a different currency symbol
-      // than the underlying subscription prices.
+      // Therefore, we must not display amounts using a different currency than
+      // the underlying subscription prices.
       final effectiveCurrencyCode = data.singleCurrency ?? data.currencyCode;
 
-      final Map<String, NumberFormat> currencyFormatCache = {};
-      NumberFormat fmtFor(String currencyCode) {
-        return currencyFormatCache.putIfAbsent(currencyCode, () {
-          final symbol = Currencies.getSymbol(currencyCode);
-          return NumberFormat.currency(
-            name: currencyCode,
-            symbol: symbol,
-            decimalDigits: 2,
-          );
-        });
-      }
-
       String formatMoney(double amount, String currencyCode) {
-        return fmtFor(currencyCode).format(amount);
+        return PdfCurrencyFormatter.format(amount, currencyCode);
       }
 
       // Colors
       const primaryColor = PdfColor.fromInt(0xFF2196F3);
       const secondaryColor = PdfColor.fromInt(0xFF4CAF50);
       const headerBgColor = PdfColor.fromInt(0xFFF5F5F5);
+
+      pw.TextStyle withFallback(pw.TextStyle base) {
+        if (fontFallback.isEmpty) return base;
+        return base.copyWith(fontFallback: fontFallback);
+      }
 
       pdf.addPage(
         pw.MultiPage(
@@ -386,26 +400,32 @@ class PDFReportService {
                             data.totalSpentSingleCurrency!,
                             effectiveCurrencyCode,
                           ),
-                          style: pw.TextStyle(
+                          style: withFallback(
+                            pw.TextStyle(
                               fontWeight: pw.FontWeight.bold,
                               fontSize: 28,
                               color: secondaryColor),
+                          ),
                         )
                       else ...[
                         pw.Text(
                           'Multiple currencies',
-                          style: pw.TextStyle(
+                          style: withFallback(
+                            pw.TextStyle(
                               fontWeight: pw.FontWeight.bold,
                               fontSize: 18,
                               color: secondaryColor),
+                          ),
                         ),
                         pw.SizedBox(height: 6),
                         ...data.totalSpentByCurrency.entries.map((e) {
                           return pw.Text(
-                            '${e.key}: ${formatMoney(e.value, e.key)}',
-                            style: pw.TextStyle(
+                            formatMoney(e.value, e.key),
+                            style: withFallback(
+                              pw.TextStyle(
                               fontSize: 10,
                               color: PdfColors.grey700,
+                              ),
                             ),
                           );
                         }),
@@ -442,9 +462,11 @@ class PDFReportService {
                           style: pw.TextStyle(fontSize: 12),
                         ),
                         pw.Text(
-                            '${formatMoney(entry.value, effectiveCurrencyCode)} (${percentage.toStringAsFixed(1)}%)',
-                          style: pw.TextStyle(
+                          '${formatMoney(entry.value, effectiveCurrencyCode)} (${percentage.toStringAsFixed(1)}%)',
+                          style: withFallback(
+                            pw.TextStyle(
                               fontWeight: pw.FontWeight.bold, fontSize: 12),
+                          ),
                         ),
                       ],
                     ),
@@ -501,22 +523,30 @@ class PDFReportService {
                 pw.TableRow(
                   decoration: const pw.BoxDecoration(color: headerBgColor),
                   children: [
-                    _buildTableCell('Name', isHeader: true),
-                    _buildTableCell('Brand', isHeader: true),
-                    _buildTableCell('Category', isHeader: true),
-                    _buildTableCell('Cycle', isHeader: true),
-                    _buildTableCell('Price', isHeader: true),
+                    _buildTableCell('Name', isHeader: true, fontFallback: fontFallback),
+                    _buildTableCell('Brand', isHeader: true, fontFallback: fontFallback),
+                    _buildTableCell('Category', isHeader: true, fontFallback: fontFallback),
+                    _buildTableCell('Cycle', isHeader: true, fontFallback: fontFallback),
+                    _buildTableCell('Price', isHeader: true, fontFallback: fontFallback),
                   ],
                 ),
                 // Data rows
                 ...data.subscriptions.map((sub) {
                   return pw.TableRow(
                     children: [
-                      _buildTableCell(sub.name),
-                      _buildTableCell(data.brandNameFor(sub)),
-                      _buildTableCell(data.categoryFor(sub)),
-                      _buildTableCell(_formatBillingCycle(sub.cycle)),
-                      _buildTableCell(formatMoney(sub.price, sub.currency.trim().isEmpty ? effectiveCurrencyCode : sub.currency)),
+                      _buildTableCell(sub.name, fontFallback: fontFallback),
+                      _buildTableCell(data.brandNameFor(sub), fontFallback: fontFallback),
+                      _buildTableCell(data.categoryFor(sub), fontFallback: fontFallback),
+                      _buildTableCell(_formatBillingCycle(sub.cycle), fontFallback: fontFallback),
+                      _buildTableCell(
+                        formatMoney(
+                          sub.price,
+                          sub.currency.trim().isEmpty
+                              ? effectiveCurrencyCode
+                              : sub.currency,
+                        ),
+                        fontFallback: fontFallback,
+                      ),
                     ],
                   );
                 }),
@@ -563,13 +593,17 @@ class PDFReportService {
 
       return file;
     } catch (e) {
-      print('Error generating PDF: $e');
+      dev.log('Error generating PDF', name: 'PDFReportService', error: e);
       return null;
     }
   }
 
   /// Build a table cell
-  pw.Widget _buildTableCell(String text, {bool isHeader = false}) {
+  pw.Widget _buildTableCell(
+    String text, {
+    bool isHeader = false,
+    List<pw.Font> fontFallback = const [],
+  }) {
     return pw.Padding(
       padding: const pw.EdgeInsets.all(8),
       child: pw.Text(
@@ -577,6 +611,7 @@ class PDFReportService {
         style: pw.TextStyle(
           fontWeight: isHeader ? pw.FontWeight.bold : pw.FontWeight.normal,
           fontSize: isHeader ? 11 : 10,
+          fontFallback: fontFallback,
         ),
       ),
     );
