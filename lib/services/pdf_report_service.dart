@@ -4,6 +4,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
 import 'package:open_file/open_file.dart' as open_file;
+import 'package:printing/printing.dart';
 import '../models/currency.dart';
 import '../models/subscription.dart';
 import '../models/subscription_brand.dart';
@@ -238,6 +239,25 @@ class PDFReportService {
       final pdf = pw.Document();
       final dateFormat = DateFormat('MMM d, yyyy');
 
+      // Use a Unicode-capable font so currency symbols like "€" render correctly.
+      // The default built-in PDF fonts may substitute/misrender such characters.
+      pw.ThemeData? theme;
+      try {
+        final base = await PdfGoogleFonts.notoSansRegular();
+        final bold = await PdfGoogleFonts.notoSansBold();
+        final italic = await PdfGoogleFonts.notoSansItalic();
+        final boldItalic = await PdfGoogleFonts.notoSansBoldItalic();
+        theme = pw.ThemeData.withFont(
+          base: base,
+          bold: bold,
+          italic: italic,
+          boldItalic: boldItalic,
+        );
+      } catch (_) {
+        // If font download fails (offline, etc.), fall back to default fonts.
+        theme = null;
+      }
+
       // IMPORTANT:
       // We currently do not convert between currencies in the PDF.
       // Therefore, we must not display amounts using a different currency symbol
@@ -269,6 +289,7 @@ class PDFReportService {
         pw.MultiPage(
           pageFormat: PdfPageFormat.a4,
           margin: const pw.EdgeInsets.all(40),
+          theme: theme,
           build: (context) => [
             // Header
             pw.Container(
