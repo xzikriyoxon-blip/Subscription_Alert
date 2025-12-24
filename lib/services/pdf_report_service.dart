@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:open_file/open_file.dart' as open_file;
 import '../models/currency.dart';
 import '../models/subscription.dart';
+import '../models/subscription_brand.dart';
 
 /// Report type for PDF generation
 enum ReportType {
@@ -29,13 +30,66 @@ class ReportData {
     required this.reportType,
   });
 
-  /// Calculate total spent in the period
-  double get totalSpent {
-    double total = 0;
-    for (final sub in subscriptions) {
-      total += _calculateSubscriptionCost(sub);
+  SubscriptionBrand? _resolveBrand(Subscription sub) {
+    final brandId = sub.brandId;
+    if (brandId != null && brandId.trim().isNotEmpty) {
+      final byId = SubscriptionBrands.getById(brandId);
+      if (byId != null) return byId;
     }
-    return total;
+
+    // Fallback: try fuzzy match by name (e.g. user typed "Netflix" but didn't pick a brand).
+    final byName = SubscriptionBrands.getByName(sub.name);
+    return byName;
+  }
+
+  /// Best-effort category label for a subscription.
+  String categoryFor(Subscription sub) {
+    return _resolveBrand(sub)?.category ?? BrandCategory.other;
+  }
+
+  /// Best-effort brand display name for a subscription.
+  String brandNameFor(Subscription sub) {
+    final brand = _resolveBrand(sub);
+    if (brand != null) return brand.name;
+
+    // If no brand match, show the stored brandId (if any) or a friendly fallback.
+    final brandId = sub.brandId;
+    if (brandId != null && brandId.trim().isNotEmpty) return brandId;
+    return 'Other';
+  }
+
+  /// Currency codes present in the report subscriptions.
+  Set<String> get currenciesInReport {
+    return subscriptions
+        .map((s) => s.currency.trim())
+        .where((c) => c.isNotEmpty)
+        .toSet();
+  }
+
+  /// If the report contains exactly one currency, returns it. Otherwise null.
+  String? get singleCurrency {
+    final set = currenciesInReport;
+    if (set.length == 1) return set.first;
+    return null;
+  }
+
+  /// Total spent per currency.
+  Map<String, double> get totalSpentByCurrency {
+    final totals = <String, double>{};
+    for (final sub in subscriptions) {
+      final code = sub.currency.trim().isEmpty ? currencyCode : sub.currency;
+      totals[code] = (totals[code] ?? 0) + _calculateSubscriptionCost(sub);
+    }
+    return totals;
+  }
+
+  /// Calculate total spent in the period.
+  ///
+  /// NOTE: Only meaningful when the report contains a single currency.
+  double? get totalSpentSingleCurrency {
+    final code = singleCurrency;
+    if (code == null) return null;
+    return totalSpentByCurrency[code] ?? 0.0;
   }
 
   /// Calculate cost for a single subscription in the period
@@ -85,24 +139,24 @@ class ReportData {
     return payments;
   }
 
-  /// Get subscriptions grouped by brand (using brandId or 'Other')
-  Map<String, List<Subscription>> get subscriptionsByBrand {
+  /// Get subscriptions grouped by category.
+  Map<String, List<Subscription>> get subscriptionsByCategory {
     final Map<String, List<Subscription>> grouped = {};
     for (final sub in subscriptions) {
-      final brand = sub.brandId ?? 'Other';
-      grouped.putIfAbsent(brand, () => []);
-      grouped[brand]!.add(sub);
+      final category = categoryFor(sub);
+      grouped.putIfAbsent(category, () => []);
+      grouped[category]!.add(sub);
     }
     return grouped;
   }
 
-  /// Get spending by brand
-  Map<String, double> get spendingByBrand {
+  /// Get spending by category
+  Map<String, double> get spendingByCategory {
     final Map<String, double> spending = {};
     for (final sub in subscriptions) {
-      final brand = sub.brandId ?? 'Other';
-      spending.putIfAbsent(brand, () => 0);
-      spending[brand] = spending[brand]! + _calculateSubscriptionCost(sub);
+      final category = categoryFor(sub);
+      spending.putIfAbsent(category, () => 0);
+      spending[category] = spending[category]! + _calculateSubscriptionCost(sub);
     }
     return spending;
   }
@@ -183,12 +237,28 @@ class PDFReportService {
     try {
       final pdf = pw.Document();
       final dateFormat = DateFormat('MMM d, yyyy');
-      final symbol = Currencies.getSymbol(data.currencyCode);
-      final currencyFormat = NumberFormat.currency(
-        name: data.currencyCode,
-        symbol: symbol,
-        decimalDigits: 2,
-      );
+
+      // IMPORTANT:
+      // We currently do not convert between currencies in the PDF.
+      // Therefore, we must not display amounts using a different currency symbol
+      // than the underlying subscription prices.
+      final effectiveCurrencyCode = data.singleCurrency ?? data.currencyCode;
+
+      final Map<String, NumberFormat> currencyFormatCache = {};
+      NumberFormat fmtFor(String currencyCode) {
+        return currencyFormatCache.putIfAbsent(currencyCode, () {
+          final symbol = Currencies.getSymbol(currencyCode);
+          return NumberFormat.currency(
+            name: currencyCode,
+            symbol: symbol,
+            decimalDigits: 2,
+          );
+        });
+      }
+
+      String formatMoney(double amount, String currencyCode) {
+        return fmtFor(currencyCode).format(amount);
+      }
 
       // Colors
       const primaryColor = PdfColor.fromInt(0xFF2196F3);
@@ -289,13 +359,36 @@ class PDFReportService {
                             fontSize: 12, color: PdfColors.grey600),
                       ),
                       pw.SizedBox(height: 5),
-                      pw.Text(
-                        currencyFormat.format(data.totalSpent),
-                        style: pw.TextStyle(
-                            fontWeight: pw.FontWeight.bold,
-                            fontSize: 28,
-                            color: secondaryColor),
-                      ),
+                      if (data.totalSpentSingleCurrency != null)
+                        pw.Text(
+                          formatMoney(
+                            data.totalSpentSingleCurrency!,
+                            effectiveCurrencyCode,
+                          ),
+                          style: pw.TextStyle(
+                              fontWeight: pw.FontWeight.bold,
+                              fontSize: 28,
+                              color: secondaryColor),
+                        )
+                      else ...[
+                        pw.Text(
+                          'Multiple currencies',
+                          style: pw.TextStyle(
+                              fontWeight: pw.FontWeight.bold,
+                              fontSize: 18,
+                              color: secondaryColor),
+                        ),
+                        pw.SizedBox(height: 6),
+                        ...data.totalSpentByCurrency.entries.map((e) {
+                          return pw.Text(
+                            '${e.key}: ${formatMoney(e.value, e.key)}',
+                            style: pw.TextStyle(
+                              fontSize: 10,
+                              color: PdfColors.grey700,
+                            ),
+                          );
+                        }),
+                      ],
                     ],
                   ),
                 ],
@@ -304,15 +397,16 @@ class PDFReportService {
 
             pw.SizedBox(height: 30),
 
-            // Spending by Brand Section
+            // Spending by Category Section
             pw.Text(
-              'Spending by Brand',
+              'Spending by Category',
               style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 18),
             ),
             pw.SizedBox(height: 15),
-            ...data.spendingByBrand.entries.map((entry) {
-              final percentage = data.totalSpent > 0
-                  ? (entry.value / data.totalSpent * 100)
+            ...data.spendingByCategory.entries.map((entry) {
+              final totalForPercent = (data.totalSpentSingleCurrency ?? 0.0);
+              final percentage = totalForPercent > 0
+                  ? (entry.value / totalForPercent * 100)
                   : 0.0;
               return pw.Container(
                 margin: const pw.EdgeInsets.only(bottom: 10),
@@ -327,7 +421,7 @@ class PDFReportService {
                           style: pw.TextStyle(fontSize: 12),
                         ),
                         pw.Text(
-                          '${currencyFormat.format(entry.value)} (${percentage.toStringAsFixed(1)}%)',
+                            '${formatMoney(entry.value, effectiveCurrencyCode)} (${percentage.toStringAsFixed(1)}%)',
                           style: pw.TextStyle(
                               fontWeight: pw.FontWeight.bold, fontSize: 12),
                         ),
@@ -375,10 +469,11 @@ class PDFReportService {
             pw.Table(
               border: pw.TableBorder.all(color: PdfColors.grey300),
               columnWidths: {
-                0: const pw.FlexColumnWidth(2.5),
-                1: const pw.FlexColumnWidth(1.5),
-                2: const pw.FlexColumnWidth(1.5),
-                3: const pw.FlexColumnWidth(1.5),
+                0: const pw.FlexColumnWidth(2.2),
+                1: const pw.FlexColumnWidth(1.4),
+                2: const pw.FlexColumnWidth(1.4),
+                3: const pw.FlexColumnWidth(1.2),
+                4: const pw.FlexColumnWidth(1.4),
               },
               children: [
                 // Header row
@@ -387,6 +482,7 @@ class PDFReportService {
                   children: [
                     _buildTableCell('Name', isHeader: true),
                     _buildTableCell('Brand', isHeader: true),
+                    _buildTableCell('Category', isHeader: true),
                     _buildTableCell('Cycle', isHeader: true),
                     _buildTableCell('Price', isHeader: true),
                   ],
@@ -396,9 +492,10 @@ class PDFReportService {
                   return pw.TableRow(
                     children: [
                       _buildTableCell(sub.name),
-                      _buildTableCell(sub.brandId ?? 'Other'),
+                      _buildTableCell(data.brandNameFor(sub)),
+                      _buildTableCell(data.categoryFor(sub)),
                       _buildTableCell(_formatBillingCycle(sub.cycle)),
-                      _buildTableCell(currencyFormat.format(sub.price)),
+                      _buildTableCell(formatMoney(sub.price, sub.currency.trim().isEmpty ? effectiveCurrencyCode : sub.currency)),
                     ],
                   );
                 }),
