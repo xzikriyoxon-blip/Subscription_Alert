@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "537197819060-jj8robb34k6eok207lijdnonea467ppo.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.xzikriyoxon.subscriptionalert",
+            "certificate_hash": "ee357c6541761ac60b12df95cca5c5eb21ad8e8c"
+          }
+        },
+        {
           "client_id": "537197819060-sa7fb612732t24o9ivt5p8gj9ssdhps0.apps.googleusercontent.com",
           "client_type": 3
         }
