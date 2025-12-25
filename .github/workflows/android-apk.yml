@@ -16,6 +16,11 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
+      # Ensure the Android SDK env vars are always defined.
+      # The runner/"setup-android" step may still override these, but having defaults
+      # makes scripts more predictable and avoids "SDK not found" when runner env changes.
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
       ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
       ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
@@ -39,7 +44,10 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Resolve Android SDK env
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Resolve Android SDK env (best-effort)
         shell: bash
         run: |
           set -euo pipefail
@@ -63,7 +71,7 @@ jobs:
           fi
 
           if [ -z "$SDK_ROOT" ]; then
-            echo "Android SDK not found. Checked ANDROID_SDK_ROOT/ANDROID_HOME and common locations." >&2
+            echo "Android SDK not found yet (will likely fail in the next step)." >&2
             echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-<unset>}" >&2
             echo "ANDROID_HOME=${ANDROID_HOME:-<unset>}" >&2
             echo "Directory listing of /usr/local/lib/android (if present):" >&2
@@ -187,7 +195,19 @@ jobs:
           ' build-debug.log || true
 
           echo "---- likely error lines (tail) ----"
-          grep -nE "(FAILURE: Build failed|\* What went wrong:|\* Exception is:|Execution failed for task|A problem occurred|^e: |\berror:|Compilation error|Caused by:)" build-debug.log | tail -n 250 || true
+          grep -nE "(FAILURE: Build failed|\* What went wrong:|\* Exception is:|Execution failed for task|A problem occurred|^e: |\berror:|Compilation error|Caused by:|checkDebugAarMetadata|AAR metadata|minCompileSdk|requires compileSdk|requires Android Gradle plugin|com.android.tools.build:gradle)" build-debug.log | tail -n 400 || true
+
+          echo "---- AAR metadata issues (context) ----"
+          # Print a bit of context around any AAR metadata-related failures.
+          awk '
+            { lines[NR]=$0 }
+            /checkDebugAarMetadata|AAR metadata|minCompileSdk|requires compileSdk|requires Android Gradle plugin/ {
+              start=(NR-6); if (start<1) start=1;
+              end=(NR+10);
+              for(i=start;i<=end;i++){ if(i in lines) print i ":" lines[i] }
+              print "----";
+            }
+          ' build-debug.log | tail -n 500 || true
 
           echo "---- last 300 log lines ----"
           tail -n 300 build-debug.log || true

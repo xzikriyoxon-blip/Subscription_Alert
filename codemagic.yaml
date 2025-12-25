@@ -25,11 +25,35 @@ workflows:
       - name: Ensure Android SDK platform (API 35)
         script: |
           set -euo pipefail
+          # Codemagic images may not always export ANDROID_SDK_ROOT/ANDROID_HOME.
+          # Probe common locations and persist env vars so later scripts can use them.
           ANDROID_SDK_DIR="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
-          if [ -z "$ANDROID_SDK_DIR" ]; then
-            echo "ANDROID_SDK_ROOT/ANDROID_HOME is not set; cannot install Android SDK components" >&2
+          if [ -z "${ANDROID_SDK_DIR}" ] || [ ! -d "${ANDROID_SDK_DIR}" ]; then
+            for CANDIDATE in \
+              "/usr/local/lib/android/sdk" \
+              "/opt/android-sdk" \
+              "/opt/android" \
+              "/opt/hostedtoolcache/android/sdk"; do
+              if [ -d "$CANDIDATE" ]; then
+                ANDROID_SDK_DIR="$CANDIDATE"
+                break
+              fi
+            done
+          fi
+          if [ -z "${ANDROID_SDK_DIR}" ] || [ ! -d "${ANDROID_SDK_DIR}" ]; then
+            echo "Android SDK not found. Set ANDROID_SDK_ROOT or ANDROID_HOME in Codemagic env vars, or ensure the SDK exists on the build image." >&2
+            echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-<unset>}" >&2
+            echo "ANDROID_HOME=${ANDROID_HOME:-<unset>}" >&2
             exit 1
           fi
+
+          export ANDROID_SDK_ROOT="$ANDROID_SDK_DIR"
+          export ANDROID_HOME="$ANDROID_SDK_DIR"
+          if [ -n "${CM_ENV:-}" ]; then
+            echo "ANDROID_SDK_ROOT=$ANDROID_SDK_DIR" >> "$CM_ENV"
+            echo "ANDROID_HOME=$ANDROID_SDK_DIR" >> "$CM_ENV"
+          fi
+
           SDKMANAGER="$ANDROID_SDK_DIR/cmdline-tools/latest/bin/sdkmanager"
           if [ ! -x "$SDKMANAGER" ]; then
             echo "sdkmanager not found at $SDKMANAGER" >&2
@@ -46,8 +70,22 @@ workflows:
           set -euo pipefail
           FLUTTER_SDK_DIR="$(dirname "$(dirname "$(command -v flutter)")")"
           ANDROID_SDK_DIR="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
-          if [ -z "$ANDROID_SDK_DIR" ]; then
-            echo "ANDROID_SDK_ROOT/ANDROID_HOME is not set; cannot create sdk.dir" >&2
+          if [ -z "${ANDROID_SDK_DIR}" ] || [ ! -d "${ANDROID_SDK_DIR}" ]; then
+            for CANDIDATE in \
+              "/usr/local/lib/android/sdk" \
+              "/opt/android-sdk" \
+              "/opt/android" \
+              "/opt/hostedtoolcache/android/sdk"; do
+              if [ -d "$CANDIDATE" ]; then
+                ANDROID_SDK_DIR="$CANDIDATE"
+                break
+              fi
+            done
+          fi
+          if [ -z "${ANDROID_SDK_DIR}" ] || [ ! -d "${ANDROID_SDK_DIR}" ]; then
+            echo "Android SDK not found; cannot create sdk.dir in android/local.properties" >&2
+            echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-<unset>}" >&2
+            echo "ANDROID_HOME=${ANDROID_HOME:-<unset>}" >&2
             exit 1
           fi
           cat > "$CM_BUILD_DIR/android/local.properties" <<EOF
