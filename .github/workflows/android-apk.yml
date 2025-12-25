@@ -77,7 +77,7 @@ jobs:
           echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
           echo "Resolved ANDROID_SDK_ROOT=$SDK_ROOT"
 
-      - name: Ensure Android SDK platform (API 36)
+      - name: Ensure Android SDK platform (API 35)
         shell: bash
         run: |
           set -euo pipefail
@@ -112,14 +112,11 @@ jobs:
           set +o pipefail
           yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
           set -o pipefail
-          # Install required platform. If build-tools 36 isn't available, fall back to 35.
-          "$SDKMANAGER" "platform-tools" "platforms;android-36"
-          if ! "$SDKMANAGER" "build-tools;36.0.0"; then
-            "$SDKMANAGER" "build-tools;35.0.0"
-          fi
+          # Install required platform/build-tools.
+          "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
           echo "Installed Android platforms/build-tools (filtered):"
-          "$SDKMANAGER" --list_installed | grep -E "(platforms;android-36|build-tools;3[5-6]\\.|platform-tools)" || true
+          "$SDKMANAGER" --list_installed | grep -E "(platforms;android-35|build-tools;35\\.|platform-tools)" || true
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
