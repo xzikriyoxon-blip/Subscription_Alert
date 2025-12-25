@@ -66,8 +66,8 @@ android {
     defaultConfig {
         applicationId "com.xzikriyoxon.subscriptionalert"
         // Flutter defaults can change across channels/versions; pin these to avoid surprises.
-        // minSdk 21 is the common baseline for modern Flutter apps.
-        minSdkVersion 21
+        // Flutter now requires Android API 23+.
+        minSdkVersion 23
         targetSdkVersion 35
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
