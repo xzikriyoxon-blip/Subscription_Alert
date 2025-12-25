@@ -30,6 +30,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Free up disk space
+        shell: bash
+        run: |
+          echo "=== Disk usage BEFORE cleanup ==="
+          df -h
+          echo ""
+          echo "Removing unnecessary preinstalled software..."
+          # Remove large preinstalled packages to free ~20GB+
+          sudo rm -rf /usr/local/lib/android/sdk/ndk || true
+          sudo rm -rf /usr/local/lib/android/sdk/cmake || true
+          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf /opt/ghc || true
+          sudo rm -rf /usr/local/share/boost || true
+          sudo rm -rf /usr/local/graalvm || true
+          sudo rm -rf /usr/local/share/powershell || true
+          sudo rm -rf /usr/local/share/chromium || true
+          sudo rm -rf /usr/local/lib/node_modules || true
+          sudo apt-get clean || true
+          # Clear Gradle and pub caches from previous runs
+          rm -rf ~/.gradle/caches/ || true
+          rm -rf ~/.pub-cache || true
+          echo ""
+          echo "=== Disk usage AFTER cleanup ==="
+          df -h
+
       - name: Prepare Gradle wrapper (LF + executable)
         shell: bash
         run: |
