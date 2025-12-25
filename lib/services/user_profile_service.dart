@@ -108,6 +108,20 @@ class UserProfileService {
     }, SetOptions(merge: true));
   }
 
+  /// Updates the mapping of subscriptionId -> Google Calendar eventId.
+  ///
+  /// Stored in the user profile so we can update/delete events reliably and
+  /// avoid creating duplicates on each sync.
+  Future<void> updateCalendarEventIds(
+    String userId, {
+    required Map<String, String> eventIds,
+  }) async {
+    await _usersRef.doc(userId).set({
+      'calendarEventIds': eventIds,
+      'updatedAt': Timestamp.fromDate(DateTime.now()),
+    }, SetOptions(merge: true));
+  }
+
   /// Grants lifetime premium to a user (after purchase).
   Future<void> grantLifetimePremium(String userId) async {
     await _usersRef.doc(userId).update({

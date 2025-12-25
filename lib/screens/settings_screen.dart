@@ -602,7 +602,32 @@ class SettingsScreen extends ConsumerWidget {
             return;
           }
 
-          await controller.setCalendarSync(enabled: true, calendarId: 'primary');
+          const calendarId = 'primary';
+          await controller.setCalendarSync(enabled: true, calendarId: calendarId);
+
+          // Immediately sync existing subscriptions so users see events right away.
+          final subs = ref.read(subscriptionsProvider);
+          final profile = ref.read(userProfileProvider);
+          final existingEventIds = profile?.calendarEventIds ?? const <String, String>{};
+
+          final result = await calendarService.syncAllSubscriptions(
+            subscriptions: subs,
+            calendarId: calendarId,
+            existingEventIds: existingEventIds,
+          );
+
+          await controller.setCalendarEventIds(result.eventIds);
+
+          if (!context.mounted) return;
+          if (result.failed > 0) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Calendar sync completed with ${result.failed} failures')),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Calendar synced (${result.total} changes)')),
+            );
+          }
         } else {
           await controller.setCalendarSync(enabled: false);
         }

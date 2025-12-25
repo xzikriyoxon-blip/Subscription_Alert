@@ -242,6 +242,14 @@ class PremiumController {
     );
   }
 
+  /// Persists the mapping of subscriptionId -> calendar eventId.
+  Future<void> setCalendarEventIds(Map<String, String> eventIds) async {
+    await _profileService.updateCalendarEventIds(
+      _userId,
+      eventIds: eventIds,
+    );
+  }
+
   /// Applies a referral code.
   Future<ReferralResult> applyReferralCode(String code) async {
     return _profileService.applyReferralCode(

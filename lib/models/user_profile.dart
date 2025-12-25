@@ -23,6 +23,7 @@ class UserProfile {
   final String themeMode; // 'system', 'light', 'dark'
   final bool calendarSyncEnabled;
   final String? calendarId; // ID of synced calendar
+  final Map<String, String> calendarEventIds; // subscriptionId -> eventId
 
   // Timestamps
   final DateTime createdAt;
@@ -42,6 +43,7 @@ class UserProfile {
     this.themeMode = 'system',
     this.calendarSyncEnabled = false,
     this.calendarId,
+    this.calendarEventIds = const {},
     required this.createdAt,
     required this.updatedAt,
   });
@@ -69,6 +71,19 @@ class UserProfile {
   /// Creates a UserProfile from a Firestore document snapshot.
   factory UserProfile.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
+
+    // Firestore stores maps as Map<String, dynamic>. Normalize to Map<String, String>.
+    final rawEventIds = data['calendarEventIds'];
+    final eventIds = <String, String>{};
+    if (rawEventIds is Map) {
+      for (final entry in rawEventIds.entries) {
+        final k = entry.key;
+        final v = entry.value;
+        if (k == null || v == null) continue;
+        eventIds['$k'] = '$v';
+      }
+    }
+
     return UserProfile(
       id: doc.id,
       email: data['email'] as String?,
@@ -83,6 +98,7 @@ class UserProfile {
       themeMode: data['themeMode'] as String? ?? 'system',
       calendarSyncEnabled: data['calendarSyncEnabled'] as bool? ?? false,
       calendarId: data['calendarId'] as String?,
+      calendarEventIds: eventIds,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
@@ -104,6 +120,7 @@ class UserProfile {
       'themeMode': themeMode,
       'calendarSyncEnabled': calendarSyncEnabled,
       'calendarId': calendarId,
+      'calendarEventIds': calendarEventIds,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -126,6 +143,8 @@ class UserProfile {
     bool? calendarSyncEnabled,
     String? calendarId,
     bool clearCalendarId = false,
+    Map<String, String>? calendarEventIds,
+    bool clearCalendarEventIds = false,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -144,6 +163,9 @@ class UserProfile {
       themeMode: themeMode ?? this.themeMode,
       calendarSyncEnabled: calendarSyncEnabled ?? this.calendarSyncEnabled,
       calendarId: clearCalendarId ? null : (calendarId ?? this.calendarId),
+      calendarEventIds: clearCalendarEventIds
+          ? const {}
+          : (calendarEventIds ?? this.calendarEventIds),
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? DateTime.now(),
     );

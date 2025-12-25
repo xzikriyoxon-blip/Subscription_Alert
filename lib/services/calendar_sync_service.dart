@@ -152,9 +152,23 @@ class GoogleCalendarSyncService {
         ..end = gcal.EventDateTime();
 
       // Set as all-day event
-      final dateStr = _formatDate(subscription.nextPaymentDate);
-      event.start!.date = DateTime.parse(dateStr);
-      event.end!.date = DateTime.parse(dateStr);
+      // For all-day events, Google Calendar expects the end date to be
+      // *exclusive* (i.e., the next day). If start == end, the event may not
+      // render in many calendar views.
+      final startDate = DateTime(
+        subscription.nextPaymentDate.year,
+        subscription.nextPaymentDate.month,
+        subscription.nextPaymentDate.day,
+      );
+      event.start!.date = startDate;
+      event.end!.date = startDate.add(const Duration(days: 1));
+
+      // Tag event so we can identify it later (optional but useful for debugging).
+      event.extendedProperties = gcal.EventExtendedProperties()
+        ..private = {
+          'managedBy': 'SubscriptionAlert',
+          'subscriptionId': subscription.id,
+        };
 
       // Add recurrence based on subscription cycle
       event.recurrence = [_buildRecurrenceRule(subscription)];
