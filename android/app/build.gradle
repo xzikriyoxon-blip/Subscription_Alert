@@ -45,7 +45,9 @@ android {
     // with all (or nearly all) devices during review.
     //
     // Update these intentionally when Google Play's target API requirements change.
-    compileSdk 35
+    // Some Flutter plugins now require compiling against API 36.
+    // If this is lower, Gradle will fail (often during :app:checkDebugAarMetadata).
+    compileSdk 36
     ndkVersion flutter.ndkVersion
 
     compileOptions {
@@ -66,8 +68,10 @@ android {
     defaultConfig {
         applicationId "com.xzikriyoxon.subscriptionalert"
         // Flutter defaults can change across channels/versions; pin these to avoid surprises.
-        // Flutter now requires Android API 23+.
+        // Many current AndroidX/Firebase libraries require minSdk 23+ and will fail
+        // :app:checkDebugAarMetadata when the project minSdk is lower.
         minSdkVersion 23
+        // Target API can lag compileSdk; keep this aligned with Play requirements.
         targetSdkVersion 35
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
