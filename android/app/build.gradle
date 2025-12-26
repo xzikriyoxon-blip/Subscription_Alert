@@ -66,9 +66,9 @@ android {
     defaultConfig {
         applicationId "com.xzikriyoxon.subscriptionalert"
         // Flutter defaults can change across channels/versions; pin these to avoid surprises.
-        // Many current AndroidX/Firebase libraries require minSdk 24+ and will fail
+        // Many current AndroidX/Firebase libraries require minSdk 26+ and will fail
         // :app:checkDebugAarMetadata when the project minSdk is lower.
-        minSdkVersion 24
+        minSdkVersion 26
         // Target API can lag compileSdk; keep this aligned with Play requirements.
         targetSdkVersion 35
         versionCode flutterVersionCode.toInteger()
