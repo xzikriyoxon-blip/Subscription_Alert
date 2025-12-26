@@ -45,9 +45,7 @@ android {
     // with all (or nearly all) devices during review.
     //
     // Update these intentionally when Google Play's target API requirements change.
-    // Some Flutter plugins now require compiling against API 36.
-    // If this is lower, Gradle will fail (often during :app:checkDebugAarMetadata).
-    compileSdk 36
+    compileSdk 35
     ndkVersion flutter.ndkVersion
 
     compileOptions {
