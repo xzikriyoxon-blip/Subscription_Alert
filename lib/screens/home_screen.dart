@@ -24,7 +24,7 @@ import 'usage_analytics_screen.dart';
 import 'report_screen.dart';
 
 /// Home screen displaying the user's subscriptions.
-/// 
+///
 /// Shows total monthly cost, list of subscriptions, and provides
 /// options to add, edit, or delete subscriptions.
 class HomeScreen extends ConsumerWidget {
@@ -56,7 +56,11 @@ class HomeScreen extends ConsumerWidget {
                 children: [
                   Icon(Icons.star, size: 14, color: Colors.white),
                   SizedBox(width: 2),
-                  Text('PRO', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
+                  Text('PRO',
+                      style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white)),
                 ],
               ),
             ),
@@ -107,7 +111,7 @@ class HomeScreen extends ConsumerWidget {
     final strings = ref.watch(stringsProvider);
     final isPremium = ref.watch(isPremiumProvider);
     final baseCurrency = ref.watch(baseCurrencyProvider);
-    
+
     if (subscriptions.isEmpty) {
       return Center(
         child: Column(
@@ -137,20 +141,23 @@ class HomeScreen extends ConsumerWidget {
     }
 
     // Filter active (non-cancelled) subscriptions
-    final activeSubscriptions = subscriptions.where((s) => !s.isCancelled).toList();
-    
+    final activeSubscriptions =
+        subscriptions.where((s) => !s.isCancelled).toList();
+
     // Group subscriptions by currency and calculate totals
     final Map<String, double> monthlyByCurrency = {};
     final Map<String, double> yearlyByCurrency = {};
-    
+
     for (final sub in activeSubscriptions) {
-      if (sub.cycle == 'monthly') {
-        monthlyByCurrency[sub.currency] = (monthlyByCurrency[sub.currency] ?? 0) + sub.price;
-      } else {
-        yearlyByCurrency[sub.currency] = (yearlyByCurrency[sub.currency] ?? 0) + sub.price;
-      }
+      // Add all subscription prices as monthly total (regardless of cycle)
+      monthlyByCurrency[sub.currency] =
+          (monthlyByCurrency[sub.currency] ?? 0) + sub.price;
+
+      // Yearly is monthly total * 12
+      yearlyByCurrency[sub.currency] =
+          (yearlyByCurrency[sub.currency] ?? 0) + (sub.price * 12);
     }
-    
+
     final numberFormat = NumberFormat('#,##0.00', 'en_US');
 
     return Column(
@@ -161,7 +168,7 @@ class HomeScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: isPremium 
+              colors: isPremium
                   ? [Colors.amber[600]!, Colors.orange[400]!]
                   : [Colors.blue[600]!, Colors.blue[400]!],
               begin: Alignment.topLeft,
@@ -170,7 +177,8 @@ class HomeScreen extends ConsumerWidget {
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: (isPremium ? Colors.amber : Colors.blue).withValues(alpha: 0.3),
+                color: (isPremium ? Colors.amber : Colors.blue)
+                    .withValues(alpha: 0.3),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),
@@ -191,7 +199,8 @@ class HomeScreen extends ConsumerWidget {
                   if (isPremium) ...[
                     const Spacer(),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: Colors.white24,
                         borderRadius: BorderRadius.circular(8),
@@ -209,7 +218,7 @@ class HomeScreen extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              
+
               // For premium users, show converted total
               if (isPremium)
                 _PremiumTotalDisplay(
@@ -222,24 +231,24 @@ class HomeScreen extends ConsumerWidget {
                 // Show monthly costs by currency (non-premium)
                 if (monthlyByCurrency.isNotEmpty)
                   ...monthlyByCurrency.entries.map((e) => Text(
-                    '${numberFormat.format(e.value)} ${e.key}/mo',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  )),
+                        '${numberFormat.format(e.value)} ${e.key}/mo',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      )),
                 // Show yearly costs by currency
                 if (yearlyByCurrency.isNotEmpty) ...[
                   if (monthlyByCurrency.isNotEmpty) const SizedBox(height: 4),
                   ...yearlyByCurrency.entries.map((e) => Text(
-                    '${numberFormat.format(e.value)} ${e.key}/yr',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  )),
+                        '${numberFormat.format(e.value)} ${e.key}/yr',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      )),
                 ],
                 if (monthlyByCurrency.isEmpty && yearlyByCurrency.isEmpty)
                   const Text(
@@ -259,9 +268,11 @@ class HomeScreen extends ConsumerWidget {
                   fontSize: 12,
                 ),
               ),
-              
+
               // Premium upsell for non-premium users with multiple currencies
-              if (!isPremium && (monthlyByCurrency.length > 1 || yearlyByCurrency.length > 1)) ...[
+              if (!isPremium &&
+                  (monthlyByCurrency.length > 1 ||
+                      yearlyByCurrency.length > 1)) ...[
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(8),
@@ -301,7 +312,8 @@ class HomeScreen extends ConsumerWidget {
                 subscription: subscription,
                 isPremium: isPremium,
                 baseCurrency: baseCurrency,
-                onTap: () => _showSubscriptionDetail(context, ref, subscription),
+                onTap: () =>
+                    _showSubscriptionDetail(context, ref, subscription),
                 onDelete: () => _showDeleteDialog(context, ref, subscription),
               );
             },
@@ -329,7 +341,8 @@ class HomeScreen extends ConsumerWidget {
       subscription: subscription,
       onEdit: () => _navigateToEditSubscription(context, subscription),
       onDelete: () => _showDeleteDialog(context, ref, subscription),
-      onMarkCancelled: () => _markSubscriptionCancelled(context, ref, subscription),
+      onMarkCancelled: () =>
+          _markSubscriptionCancelled(context, ref, subscription),
       onReactivate: () => _reactivateSubscription(context, ref, subscription),
       onMarkPaid: () => _markSubscriptionPaid(context, ref, subscription),
     );
@@ -383,12 +396,12 @@ class HomeScreen extends ConsumerWidget {
     Subscription subscription,
   ) async {
     final controller = ref.read(subscriptionControllerProvider);
-    
+
     if (controller == null) return;
 
     try {
       await controller.deleteSubscription(subscription);
-      
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -421,7 +434,7 @@ class HomeScreen extends ConsumerWidget {
     Subscription subscription,
   ) async {
     final controller = ref.read(subscriptionControllerProvider);
-    
+
     if (controller == null) return;
 
     try {
@@ -430,7 +443,7 @@ class HomeScreen extends ConsumerWidget {
         cancelledAt: DateTime.now(),
       );
       await controller.updateSubscription(updatedSubscription);
-      
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -457,7 +470,7 @@ class HomeScreen extends ConsumerWidget {
   ) async {
     final controller = ref.read(subscriptionControllerProvider);
     final strings = ref.read(stringsProvider);
-    
+
     if (controller == null) return;
 
     try {
@@ -466,11 +479,12 @@ class HomeScreen extends ConsumerWidget {
         clearCancelledAt: true,
       );
       await controller.updateSubscription(updatedSubscription);
-      
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${subscription.name} ${strings.active.toLowerCase()}'),
+            content:
+                Text('${subscription.name} ${strings.active.toLowerCase()}'),
           ),
         );
       }
@@ -495,7 +509,7 @@ class HomeScreen extends ConsumerWidget {
     final firestoreService = ref.read(firestoreServiceProvider);
     final controller = ref.read(subscriptionControllerProvider);
     final strings = ref.read(stringsProvider);
-    
+
     if (userId == null || controller == null) return;
 
     try {
@@ -509,10 +523,10 @@ class HomeScreen extends ConsumerWidget {
         paidDate: DateTime.now(),
         createdAt: DateTime.now(),
       );
-      
+
       // Add to history
       await firestoreService.addHistoryRecord(userId, historyRecord);
-      
+
       // Update next payment date
       DateTime nextDate;
       if (subscription.cycle == 'monthly') {
@@ -528,12 +542,12 @@ class HomeScreen extends ConsumerWidget {
           subscription.nextPaymentDate.day,
         );
       }
-      
+
       final updatedSubscription = subscription.copyWith(
         nextPaymentDate: nextDate,
       );
       await controller.updateSubscription(updatedSubscription);
-      
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -554,7 +568,8 @@ class HomeScreen extends ConsumerWidget {
     }
   }
 
-  void _showSignOutDialog(BuildContext context, WidgetRef ref, dynamic authService) {
+  void _showSignOutDialog(
+      BuildContext context, WidgetRef ref, dynamic authService) {
     final strings = ref.watch(stringsProvider);
     showDialog(
       context: context,
@@ -578,7 +593,8 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildDrawer(BuildContext context, WidgetRef ref, dynamic strings, bool isPremium, dynamic authService) {
+  Widget _buildDrawer(BuildContext context, WidgetRef ref, dynamic strings,
+      bool isPremium, dynamic authService) {
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
@@ -610,7 +626,8 @@ class HomeScreen extends ConsumerWidget {
                 if (isPremium)
                   Container(
                     margin: const EdgeInsets.only(top: 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
                       color: Colors.white24,
                       borderRadius: BorderRadius.circular(8),
@@ -623,25 +640,26 @@ class HomeScreen extends ConsumerWidget {
               ],
             ),
           ),
-          
+
           // FREE FEATURES
           _buildDrawerSectionHeader(strings.freeFeatures),
-          
+
           // Payment History - FREE
           ListTile(
             leading: const Icon(Icons.history),
             title: Text(strings.history),
             onTap: () {
               Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoryScreen()));
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const HistoryScreen()));
             },
           ),
-          
+
           const Divider(),
-          
+
           // PREMIUM FEATURES
           _buildDrawerSectionHeader(strings.premiumFeatures),
-          
+
           // Where to Watch - PREMIUM
           _buildPremiumDrawerItem(
             context: context,
@@ -650,10 +668,11 @@ class HomeScreen extends ConsumerWidget {
             isPremium: isPremium,
             onTap: () {
               Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const WatchSearchScreen()));
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const WatchSearchScreen()));
             },
           ),
-          
+
           // Music Search - PREMIUM
           _buildPremiumDrawerItem(
             context: context,
@@ -662,10 +681,11 @@ class HomeScreen extends ConsumerWidget {
             isPremium: isPremium,
             onTap: () {
               Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const MusicSearchScreen()));
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const MusicSearchScreen()));
             },
           ),
-          
+
           // Deals - PREMIUM
           _buildPremiumDrawerItem(
             context: context,
@@ -674,10 +694,11 @@ class HomeScreen extends ConsumerWidget {
             isPremium: isPremium,
             onTap: () {
               Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const DealsScreen()));
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const DealsScreen()));
             },
           ),
-          
+
           // Spend Health - PREMIUM
           _buildPremiumDrawerItem(
             context: context,
@@ -686,10 +707,11 @@ class HomeScreen extends ConsumerWidget {
             isPremium: isPremium,
             onTap: () {
               Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const SpendHealthScreen()));
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const SpendHealthScreen()));
             },
           ),
-          
+
           // Timeline - PREMIUM
           _buildPremiumDrawerItem(
             context: context,
@@ -698,10 +720,11 @@ class HomeScreen extends ConsumerWidget {
             isPremium: isPremium,
             onTap: () {
               Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const TimelineScreen()));
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const TimelineScreen()));
             },
           ),
-          
+
           // Wishlist - PREMIUM
           _buildPremiumDrawerItem(
             context: context,
@@ -710,10 +733,11 @@ class HomeScreen extends ConsumerWidget {
             isPremium: isPremium,
             onTap: () {
               Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const WishlistScreen()));
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const WishlistScreen()));
             },
           ),
-          
+
           // Usage Analytics - PREMIUM
           _buildPremiumDrawerItem(
             context: context,
@@ -722,10 +746,13 @@ class HomeScreen extends ConsumerWidget {
             isPremium: isPremium,
             onTap: () {
               Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const UsageAnalyticsScreen()));
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const UsageAnalyticsScreen()));
             },
           ),
-          
+
           // Reports - PREMIUM
           _buildPremiumDrawerItem(
             context: context,
@@ -734,10 +761,11 @@ class HomeScreen extends ConsumerWidget {
             isPremium: isPremium,
             onTap: () {
               Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportScreen()));
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const ReportScreen()));
             },
           ),
-          
+
           // Referral/Invite - PREMIUM
           _buildPremiumDrawerItem(
             context: context,
@@ -746,26 +774,29 @@ class HomeScreen extends ConsumerWidget {
             isPremium: isPremium,
             onTap: () {
               Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const ReferralScreen()));
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const ReferralScreen()));
             },
           ),
-          
+
           const Divider(),
-          
+
           // Settings
           ListTile(
             leading: const Icon(Icons.settings),
             title: Text(strings.settings),
             onTap: () {
               Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const SettingsScreen()));
             },
           ),
-          
+
           // Sign Out
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
-            title: Text(strings.signOut, style: const TextStyle(color: Colors.red)),
+            title: Text(strings.signOut,
+                style: const TextStyle(color: Colors.red)),
             onTap: () {
               Navigator.pop(context);
               _showSignOutDialog(context, ref, authService);
@@ -812,7 +843,10 @@ class HomeScreen extends ConsumerWidget {
               ),
               child: const Text(
                 'PRO',
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white),
               ),
             ),
           ],
@@ -840,7 +874,7 @@ class _PremiumTotalDisplay extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final exchangeService = ref.watch(exchangeRateServiceProvider);
-    
+
     return FutureBuilder<Map<String, double>>(
       future: _calculateTotals(exchangeService),
       builder: (context, snapshot) {
@@ -859,11 +893,11 @@ class _PremiumTotalDisplay extends ConsumerWidget {
             ),
           );
         }
-        
+
         final totals = snapshot.data ?? {'monthly': 0.0, 'yearly': 0.0};
         final monthlyTotal = totals['monthly'] ?? 0.0;
         final yearlyTotal = totals['yearly'] ?? 0.0;
-        
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -900,30 +934,33 @@ class _PremiumTotalDisplay extends ConsumerWidget {
     );
   }
 
-  Future<Map<String, double>> _calculateTotals(ExchangeRateService service) async {
+  Future<Map<String, double>> _calculateTotals(
+      ExchangeRateService service) async {
     double monthlyTotal = 0;
     double yearlyTotal = 0;
-    
-    // Convert monthly totals
+
+    // Convert monthly totals (these are already monthly equivalents)
     for (final entry in monthlyByCurrency.entries) {
       if (entry.key == baseCurrency) {
         monthlyTotal += entry.value;
       } else {
-        final converted = await service.convertAmount(entry.value, entry.key, baseCurrency);
+        final converted =
+            await service.convertAmount(entry.value, entry.key, baseCurrency);
         monthlyTotal += converted ?? 0;
       }
     }
-    
-    // Convert yearly totals
+
+    // Convert yearly totals (these are already yearly projections)
     for (final entry in yearlyByCurrency.entries) {
       if (entry.key == baseCurrency) {
         yearlyTotal += entry.value;
       } else {
-        final converted = await service.convertAmount(entry.value, entry.key, baseCurrency);
+        final converted =
+            await service.convertAmount(entry.value, entry.key, baseCurrency);
         yearlyTotal += converted ?? 0;
       }
     }
-    
+
     return {'monthly': monthlyTotal, 'yearly': yearlyTotal};
   }
 }
@@ -948,7 +985,7 @@ class _SubscriptionListItemWithConversion extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // If premium and currency differs, show conversion
     final showConversion = isPremium && subscription.currency != baseCurrency;
-    
+
     if (!showConversion) {
       return SubscriptionListItem(
         subscription: subscription,
@@ -956,12 +993,13 @@ class _SubscriptionListItemWithConversion extends ConsumerWidget {
         onDelete: onDelete,
       );
     }
-    
+
     // Premium user with different currency - show converted amount
     final convertedAsync = ref.watch(
-      convertedAmountProvider((amount: subscription.price, from: subscription.currency)),
+      convertedAmountProvider(
+          (amount: subscription.price, from: subscription.currency)),
     );
-    
+
     return SubscriptionListItem(
       subscription: subscription,
       onTap: onTap,
@@ -971,4 +1009,3 @@ class _SubscriptionListItemWithConversion extends ConsumerWidget {
     );
   }
 }
-
