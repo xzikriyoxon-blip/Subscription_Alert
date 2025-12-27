@@ -45,8 +45,7 @@ android {
     // with all (or nearly all) devices during review.
     //
     // Update these intentionally when Google Play's target API requirements change.
-    // Updated to 36 to support latest AndroidX and Flutter plugin requirements.
-    compileSdk 36
+    compileSdk 35
     ndkVersion flutter.ndkVersion
 
     compileOptions {
