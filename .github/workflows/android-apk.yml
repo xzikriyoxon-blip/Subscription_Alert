@@ -30,30 +30,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Free up disk space
+      - name: Debug runner environment
         shell: bash
         run: |
-          echo "=== Disk usage BEFORE cleanup ==="
-          df -h
+          echo "=== GitHub Runner Environment ==="
+          echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-<not set>}"
+          echo "ANDROID_HOME=${ANDROID_HOME:-<not set>}"
           echo ""
-          echo "Removing unnecessary preinstalled software..."
-          # Remove large preinstalled packages to free ~20GB+
-          sudo rm -rf /usr/local/lib/android/sdk/ndk || true
-          sudo rm -rf /usr/local/lib/android/sdk/cmake || true
-          sudo rm -rf /usr/share/dotnet || true
-          sudo rm -rf /opt/ghc || true
-          sudo rm -rf /usr/local/share/boost || true
-          sudo rm -rf /usr/local/graalvm || true
-          sudo rm -rf /usr/local/share/powershell || true
-          sudo rm -rf /usr/local/share/chromium || true
-          sudo rm -rf /usr/local/lib/node_modules || true
-          sudo apt-get clean || true
-          # Clear Gradle and pub caches from previous runs
-          rm -rf ~/.gradle/caches/ || true
-          rm -rf ~/.pub-cache || true
+          echo "=== Checking common SDK locations ==="
+          for path in "/usr/local/lib/android/sdk" "/opt/hostedtoolcache/android/sdk" "/opt/android-sdk"; do
+            if [ -d "$path" ]; then
+              echo "FOUND: $path"
+              ls -la "$path" 2>/dev/null | head -5
+            else
+              echo "NOT FOUND: $path"
+            fi
+          done
           echo ""
-          echo "=== Disk usage AFTER cleanup ==="
-          df -h
+          echo "=== Environment variables containing 'android' (case-insensitive) ==="
+          env | grep -i android || echo "(none found)"
 
       - name: Prepare Gradle wrapper (LF + executable)
         shell: bash
@@ -72,43 +67,104 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Set Android SDK environment variables
+        shell: bash
+        run: |
+          # The ubuntu-latest runner has Android SDK pre-installed at /usr/local/lib/android/sdk
+          # The setup-android action may set ANDROID_HOME to a different location
+          # We need to ensure both vars are set correctly
+          
+          # Check multiple possible SDK locations
+          SDK_FOUND=""
+          for SDK_PATH in \
+            "${ANDROID_HOME:-}" \
+            "${ANDROID_SDK_ROOT:-}" \
+            "/usr/local/lib/android/sdk" \
+            "/opt/hostedtoolcache/android/sdk"; do
+            if [ -n "$SDK_PATH" ] && [ -d "$SDK_PATH" ]; then
+              SDK_FOUND="$SDK_PATH"
+              break
+            fi
+          done
+          
+          if [ -z "$SDK_FOUND" ]; then
+            echo "ERROR: Could not find Android SDK in any known location" >&2
+            echo "Listing /usr/local/lib/android:" >&2
+            ls -la /usr/local/lib/android 2>/dev/null || echo "  (directory does not exist)"
+            echo "Listing /opt/hostedtoolcache:" >&2
+            ls -la /opt/hostedtoolcache 2>/dev/null || echo "  (directory does not exist)"
+            exit 1
+          fi
+          
+          echo "ANDROID_SDK_ROOT=$SDK_FOUND" >> $GITHUB_ENV
+          echo "ANDROID_HOME=$SDK_FOUND" >> $GITHUB_ENV
+          echo "Android SDK found and configured at: $SDK_FOUND"
+          echo "SDK contents:"
+          ls -la "$SDK_FOUND" || true
+
+      - name: Free up disk space
+        shell: bash
+        run: |
+          echo "=== Disk usage BEFORE cleanup ==="
+          df -h
+          echo ""
+          echo "Removing unnecessary preinstalled software..."
+          # Remove large preinstalled packages to free ~20GB+
+          # NOTE: Do NOT remove Android SDK core components, only NDK/CMake which are large and optional
+          SDK_PATH="${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}"
+          sudo rm -rf "$SDK_PATH/ndk" || true
+          sudo rm -rf "$SDK_PATH/cmake" || true
+          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf /opt/ghc || true
+          sudo rm -rf /usr/local/share/boost || true
+          sudo rm -rf /usr/local/graalvm || true
+          sudo rm -rf /usr/local/share/powershell || true
+          sudo rm -rf /usr/local/share/chromium || true
+          sudo rm -rf /usr/local/lib/node_modules || true
+          sudo apt-get clean || true
+          # Clear Gradle and pub caches from previous runs
+          rm -rf ~/.gradle/caches/ || true
+          rm -rf ~/.pub-cache || true
+          echo ""
+          echo "=== Disk usage AFTER cleanup ==="
+          df -h
+
       - name: Resolve Android SDK env (best-effort)
         shell: bash
         run: |
           set -euo pipefail
-          # Prefer runner-provided values. If not set (or invalid), probe common SDK locations.
-          SDK_ROOT=""
-          if [ -n "${ANDROID_SDK_ROOT:-}" ] && [ -d "${ANDROID_SDK_ROOT}" ]; then
-            SDK_ROOT="$ANDROID_SDK_ROOT"
-          elif [ -n "${ANDROID_HOME:-}" ] && [ -d "${ANDROID_HOME}" ]; then
-            SDK_ROOT="$ANDROID_HOME"
-          else
+          # Verify the SDK is available at the expected location
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+          
+          if [ -z "$SDK_ROOT" ] || [ ! -d "$SDK_ROOT" ]; then
+            echo "Android SDK not found at expected location." >&2
+            echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-<unset>}" >&2
+            echo "ANDROID_HOME=${ANDROID_HOME:-<unset>}" >&2
+            # Try to find SDK in common locations
             for CANDIDATE in \
               "/usr/local/lib/android/sdk" \
               "/opt/hostedtoolcache/android/sdk" \
               "/opt/android-sdk" \
               "/opt/android"; do
               if [ -d "$CANDIDATE" ]; then
+                echo "Found SDK at: $CANDIDATE"
+                echo "ANDROID_SDK_ROOT=$CANDIDATE" >> "$GITHUB_ENV"
+                echo "ANDROID_HOME=$CANDIDATE" >> "$GITHUB_ENV"
                 SDK_ROOT="$CANDIDATE"
                 break
               fi
             done
           fi
 
-          if [ -z "$SDK_ROOT" ]; then
-            echo "Android SDK not found yet (will likely fail in the next step)." >&2
-            echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-<unset>}" >&2
-            echo "ANDROID_HOME=${ANDROID_HOME:-<unset>}" >&2
-            echo "Directory listing of /usr/local/lib/android (if present):" >&2
+          if [ -z "$SDK_ROOT" ] || [ ! -d "$SDK_ROOT" ]; then
+            echo "ERROR: Could not locate Android SDK" >&2
             ls -la /usr/local/lib/android 2>/dev/null || true
-            echo "Directory listing of /opt/hostedtoolcache/android (if present):" >&2
             ls -la /opt/hostedtoolcache/android 2>/dev/null || true
             exit 1
           fi
 
-          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
-          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
-          echo "Resolved ANDROID_SDK_ROOT=$SDK_ROOT"
+          echo "Verified ANDROID_SDK_ROOT=$SDK_ROOT"
+          ls -la "$SDK_ROOT" || true
 
       - name: Ensure Android SDK platform (API 35)
         shell: bash
@@ -186,11 +242,33 @@ jobs:
         run: |
           set -euo pipefail
           FLUTTER_SDK_DIR="$(dirname "$(dirname "$(command -v flutter)")")"
+          
+          # Debug: Show all Android-related env vars
+          echo "DEBUG: ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-<not set>}"
+          echo "DEBUG: ANDROID_HOME=${ANDROID_HOME:-<not set>}"
+          
           ANDROID_SDK_DIR="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
-          if [ -z "$ANDROID_SDK_DIR" ]; then
-            echo "ANDROID_SDK_ROOT/ANDROID_HOME is not set; cannot create sdk.dir" >&2
+          
+          # If still not set, try to find it
+          if [ -z "$ANDROID_SDK_DIR" ] || [ ! -d "$ANDROID_SDK_DIR" ]; then
+            echo "SDK not in env vars, searching common locations..."
+            for SDK_PATH in "/usr/local/lib/android/sdk" "/opt/hostedtoolcache/android/sdk"; do
+              if [ -d "$SDK_PATH" ]; then
+                ANDROID_SDK_DIR="$SDK_PATH"
+                echo "Found SDK at: $ANDROID_SDK_DIR"
+                break
+              fi
+            done
+          fi
+          
+          if [ -z "$ANDROID_SDK_DIR" ] || [ ! -d "$ANDROID_SDK_DIR" ]; then
+            echo "ANDROID_SDK_ROOT/ANDROID_HOME is not set and SDK not found; cannot create sdk.dir" >&2
+            echo "Listing potential SDK locations:"
+            ls -la /usr/local/lib/android 2>/dev/null || echo "  /usr/local/lib/android not found"
+            ls -la /opt/hostedtoolcache 2>/dev/null || echo "  /opt/hostedtoolcache not found"
             exit 1
           fi
+          
           cat > android/local.properties <<EOF
           flutter.sdk=$FLUTTER_SDK_DIR
           sdk.dir=$ANDROID_SDK_DIR
