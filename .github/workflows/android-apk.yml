@@ -145,16 +145,18 @@ jobs:
           set +o pipefail
           yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
           set -o pipefail
-          # Install required platform/build-tools.
-          "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          # Install required platform/build-tools (both 35 and 36 for compatibility).
+          "$SDKMANAGER" "platform-tools" "platforms;android-35" "platforms;android-36" "build-tools;35.0.0" "build-tools;36.0.0"
 
           echo "Installed Android platforms/build-tools (filtered):"
-          "$SDKMANAGER" --list_installed | grep -E "(platforms;android-35|build-tools;35\\.|platform-tools)" || true
+          "$SDKMANAGER" --list_installed | grep -E "(platforms;android-3|build-tools;3|platform-tools)" || true
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: "stable"
+          # Use Flutter 3.27.3 which defaults to compileSdk 35 (compatible with Google Play)
+          # Flutter 3.38.x defaults to SDK 36 which is not yet supported by Google Play
+          flutter-version: '3.27.3'
           cache: true
 
       - name: Flutter version
