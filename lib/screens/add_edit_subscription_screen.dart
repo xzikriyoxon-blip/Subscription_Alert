@@ -64,7 +64,7 @@ class _AddEditSubscriptionScreenState
       text: sub?.price.toStringAsFixed(2) ?? '',
     );
     _selectedCycle = sub?.cycle ?? 'monthly';
-    _selectedCurrency = sub?.currency ?? 'UZS';
+    _selectedCurrency = sub?.currency ?? 'USD';
     _selectedDate = sub?.nextPaymentDate ?? DateTime.now().add(
       const Duration(days: 30),
     );

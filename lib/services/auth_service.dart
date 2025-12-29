@@ -101,6 +101,80 @@ class AuthService {
     }
   }
 
+  /// Signs in the user with email and password.
+  /// 
+  /// Returns the [UserCredential] on success, throws an exception on failure.
+  Future<UserCredential> signInWithEmailPassword(String email, String password) async {
+    try {
+      return await _firebaseAuth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+    } on FirebaseAuthException catch (e) {
+      switch (e.code) {
+        case 'user-not-found':
+          throw AuthException('No user found with this email address.');
+        case 'wrong-password':
+          throw AuthException('Incorrect password. Please try again.');
+        case 'invalid-email':
+          throw AuthException('Please enter a valid email address.');
+        case 'user-disabled':
+          throw AuthException('This account has been disabled.');
+        case 'invalid-credential':
+          throw AuthException('Invalid email or password.');
+        default:
+          throw AuthException('Sign in failed: ${e.message}');
+      }
+    } catch (e) {
+      throw AuthException('Sign in failed: $e');
+    }
+  }
+
+  /// Creates a new user account with email and password.
+  /// 
+  /// Returns the [UserCredential] on success, throws an exception on failure.
+  Future<UserCredential> signUpWithEmailPassword(String email, String password) async {
+    try {
+      return await _firebaseAuth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+    } on FirebaseAuthException catch (e) {
+      switch (e.code) {
+        case 'email-already-in-use':
+          throw AuthException('An account already exists with this email.');
+        case 'invalid-email':
+          throw AuthException('Please enter a valid email address.');
+        case 'weak-password':
+          throw AuthException('Password is too weak. Use at least 6 characters.');
+        case 'operation-not-allowed':
+          throw AuthException('Email/password sign up is not enabled.');
+        default:
+          throw AuthException('Sign up failed: ${e.message}');
+      }
+    } catch (e) {
+      throw AuthException('Sign up failed: $e');
+    }
+  }
+
+  /// Sends a password reset email to the specified email address.
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await _firebaseAuth.sendPasswordResetEmail(email: email);
+    } on FirebaseAuthException catch (e) {
+      switch (e.code) {
+        case 'user-not-found':
+          throw AuthException('No user found with this email address.');
+        case 'invalid-email':
+          throw AuthException('Please enter a valid email address.');
+        default:
+          throw AuthException('Failed to send reset email: ${e.message}');
+      }
+    } catch (e) {
+      throw AuthException('Failed to send reset email: $e');
+    }
+  }
+
   /// Signs out the current user from both Firebase and Google.
   Future<void> signOut() async {
     try {
