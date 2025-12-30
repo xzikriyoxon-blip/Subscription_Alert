@@ -17,6 +17,11 @@ class SubscriptionDeal {
   final List<String>
       regions; // ['WW'] for worldwide, or ['US', 'UK', 'DE'] for specific
 
+  /// Regional prices map: {'US': '\$6.99/mo', 'FR': '€7.99/mo', 'EU': '€7.99/mo'}
+  /// Use 'EU' for all Eurozone countries, specific country codes override EU
+  final Map<String, String>? regionalPrices;
+  final Map<String, String>? regionalOriginalPrices;
+
   SubscriptionDeal({
     required this.id,
     required this.brandId,
@@ -33,6 +38,8 @@ class SubscriptionDeal {
     this.promoCode,
     this.dealType = DealType.discount,
     this.regions = const ['WW'], // Default to worldwide
+    this.regionalPrices,
+    this.regionalOriginalPrices,
   });
 
   bool get isExpired =>
@@ -45,6 +52,79 @@ class SubscriptionDeal {
   bool isAvailableIn(String countryCode) {
     if (regions.contains('WW')) return true; // Worldwide
     return regions.contains(countryCode.toUpperCase());
+  }
+
+  /// Eurozone country codes
+  static const _eurozoneCountries = {
+    'AT',
+    'BE',
+    'CY',
+    'EE',
+    'FI',
+    'FR',
+    'DE',
+    'GR',
+    'IE',
+    'IT',
+    'LV',
+    'LT',
+    'LU',
+    'MT',
+    'NL',
+    'PT',
+    'SK',
+    'SI',
+    'ES',
+    'HR',
+  };
+
+  /// Get price for a specific region/country
+  /// Falls back to: specific country -> EU (for eurozone) -> US -> default dealPrice
+  String? getPriceForRegion(String countryCode) {
+    if (regionalPrices == null) return dealPrice;
+
+    final code = countryCode.toUpperCase();
+
+    // Try specific country first
+    if (regionalPrices!.containsKey(code)) {
+      return regionalPrices![code];
+    }
+
+    // For Eurozone countries, try EU price
+    if (_eurozoneCountries.contains(code) &&
+        regionalPrices!.containsKey('EU')) {
+      return regionalPrices!['EU'];
+    }
+
+    // Try UK for GB
+    if (code == 'GB' && regionalPrices!.containsKey('UK')) {
+      return regionalPrices!['UK'];
+    }
+
+    // Fallback to US price or default
+    return regionalPrices!['US'] ?? dealPrice;
+  }
+
+  /// Get original price for a specific region/country
+  String? getOriginalPriceForRegion(String countryCode) {
+    if (regionalOriginalPrices == null) return originalPrice;
+
+    final code = countryCode.toUpperCase();
+
+    if (regionalOriginalPrices!.containsKey(code)) {
+      return regionalOriginalPrices![code];
+    }
+
+    if (_eurozoneCountries.contains(code) &&
+        regionalOriginalPrices!.containsKey('EU')) {
+      return regionalOriginalPrices!['EU'];
+    }
+
+    if (code == 'GB' && regionalOriginalPrices!.containsKey('UK')) {
+      return regionalOriginalPrices!['UK'];
+    }
+
+    return regionalOriginalPrices!['US'] ?? originalPrice;
   }
 }
 
@@ -111,6 +191,15 @@ class DealsRepository {
             'https://www.netflix.com/', // Replace with Admitad/Impact link
         affiliateNetwork: 'impact',
         dealType: DealType.discount,
+        regionalPrices: {
+          'US': '\$6.99/mo',
+          'EU': '€5.99/mo',
+          'UK': '£4.99/mo',
+          'CA': 'CA\$5.99/mo',
+          'AU': 'A\$6.99/mo',
+          'IN': '₹199/mo',
+          'BR': 'R\$18.90/mo',
+        },
       ),
       SubscriptionDeal(
         id: 'disney_1',
@@ -125,6 +214,20 @@ class DealsRepository {
             'https://www.disneyplus.com/', // Replace with Admitad/Impact link
         affiliateNetwork: 'impact',
         dealType: DealType.annualSavings,
+        regionalPrices: {
+          'US': '\$79.99/yr',
+          'EU': '€89.99/yr',
+          'UK': '£79.90/yr',
+          'CA': 'CA\$99.99/yr',
+          'AU': 'A\$119.99/yr',
+        },
+        regionalOriginalPrices: {
+          'US': '\$95.88/yr',
+          'EU': '€107.88/yr',
+          'UK': '£95.88/yr',
+          'CA': 'CA\$119.88/yr',
+          'AU': 'A\$143.88/yr',
+        },
       ),
       SubscriptionDeal(
         id: 'disney_bundle',
@@ -137,6 +240,10 @@ class DealsRepository {
         affiliateUrl: 'https://www.disneyplus.com/bundle',
         affiliateNetwork: 'impact',
         dealType: DealType.bundle,
+        regions: ['US'], // Bundle only available in US
+        regionalPrices: {
+          'US': '\$14.99/mo',
+        },
       ),
       SubscriptionDeal(
         id: 'hbo_1',
@@ -148,6 +255,12 @@ class DealsRepository {
         affiliateUrl: 'https://www.max.com/',
         affiliateNetwork: 'impact',
         dealType: DealType.discount,
+        regionalPrices: {
+          'US': '\$9.99/mo',
+          'EU': '€5.99/mo',
+          'ES': '€5.99/mo',
+          'PT': '€5.99/mo',
+        },
       ),
       SubscriptionDeal(
         id: 'hulu_1',
@@ -159,6 +272,7 @@ class DealsRepository {
         affiliateUrl: 'https://www.hulu.com/',
         affiliateNetwork: 'impact',
         dealType: DealType.freeTrial,
+        regions: ['US'], // Hulu only in US
       ),
       SubscriptionDeal(
         id: 'hulu_student',
@@ -172,6 +286,7 @@ class DealsRepository {
         affiliateUrl: 'https://www.hulu.com/student',
         affiliateNetwork: 'impact',
         dealType: DealType.studentDiscount,
+        regions: ['US'], // Hulu only in US
       ),
       SubscriptionDeal(
         id: 'paramount_1',
@@ -184,6 +299,14 @@ class DealsRepository {
         affiliateUrl: 'https://www.paramountplus.com/',
         affiliateNetwork: 'impact',
         dealType: DealType.freeTrial,
+        regionalPrices: {
+          'US': '\$5.99/mo',
+          'EU': '€7.99/mo',
+          'UK': '£6.99/mo',
+          'CA': 'CA\$6.99/mo',
+          'AU': 'A\$8.99/mo',
+          'BR': 'R\$19.90/mo',
+        },
       ),
       SubscriptionDeal(
         id: 'peacock_1',
@@ -196,6 +319,10 @@ class DealsRepository {
         affiliateUrl: 'https://www.peacocktv.com/',
         affiliateNetwork: 'impact',
         dealType: DealType.annualSavings,
+        regions: ['US'], // Peacock primarily US
+        regionalPrices: {
+          'US': '\$49.99/yr',
+        },
       ),
       SubscriptionDeal(
         id: 'apple_tv_1',
@@ -208,6 +335,15 @@ class DealsRepository {
         affiliateUrl: 'https://tv.apple.com/',
         affiliateNetwork: 'impact',
         dealType: DealType.freeTrial,
+        regionalPrices: {
+          'US': '\$9.99/mo',
+          'EU': '€9.99/mo',
+          'UK': '£8.99/mo',
+          'CA': 'CA\$12.99/mo',
+          'AU': 'A\$12.99/mo',
+          'IN': '₹99/mo',
+          'BR': 'R\$21.90/mo',
+        },
       ),
       SubscriptionDeal(
         id: 'prime_1',
@@ -231,6 +367,13 @@ class DealsRepository {
         affiliateUrl: 'https://www.amazon.com/primestudent',
         affiliateNetwork: 'impact',
         dealType: DealType.studentDiscount,
+        regionalPrices: {
+          'US': '\$7.49/mo after',
+          'EU': '€3.99/mo after',
+          'UK': '£4.49/mo after',
+          'DE': '€4.49/mo after',
+          'FR': '€3.49/mo after',
+        },
       ),
 
       // Music Deals
@@ -245,6 +388,15 @@ class DealsRepository {
         affiliateUrl: 'https://www.spotify.com/premium/',
         affiliateNetwork: 'admitad',
         dealType: DealType.freeTrial,
+        regionalPrices: {
+          'US': '\$10.99/mo after',
+          'EU': '€10.99/mo after',
+          'UK': '£10.99/mo after',
+          'CA': 'CA\$10.99/mo after',
+          'AU': 'A\$12.99/mo after',
+          'IN': '₹119/mo after',
+          'BR': 'R\$21.90/mo after',
+        },
       ),
       SubscriptionDeal(
         id: 'spotify_family',
@@ -257,6 +409,15 @@ class DealsRepository {
         affiliateUrl: 'https://www.spotify.com/family/',
         affiliateNetwork: 'admitad',
         dealType: DealType.familyPlan,
+        regionalPrices: {
+          'US': '\$16.99/mo',
+          'EU': '€17.99/mo',
+          'UK': '£17.99/mo',
+          'CA': 'CA\$16.99/mo',
+          'AU': 'A\$19.99/mo',
+          'IN': '₹179/mo',
+          'BR': 'R\$34.90/mo',
+        },
       ),
       SubscriptionDeal(
         id: 'spotify_student',
@@ -269,6 +430,15 @@ class DealsRepository {
         affiliateUrl: 'https://www.spotify.com/student/',
         affiliateNetwork: 'admitad',
         dealType: DealType.studentDiscount,
+        regionalPrices: {
+          'US': '\$5.99/mo',
+          'EU': '€5.99/mo',
+          'UK': '£5.99/mo',
+          'CA': 'CA\$5.99/mo',
+          'AU': 'A\$6.99/mo',
+          'IN': '₹59/mo',
+          'BR': 'R\$11.90/mo',
+        },
       ),
       SubscriptionDeal(
         id: 'apple_music_1',
@@ -281,6 +451,15 @@ class DealsRepository {
         affiliateUrl: 'https://music.apple.com/',
         affiliateNetwork: 'impact',
         dealType: DealType.freeTrial,
+        regionalPrices: {
+          'US': '\$10.99/mo after',
+          'EU': '€10.99/mo after',
+          'UK': '£10.99/mo after',
+          'CA': 'CA\$10.99/mo after',
+          'AU': 'A\$13.99/mo after',
+          'IN': '₹99/mo after',
+          'BR': 'R\$21.90/mo after',
+        },
       ),
       SubscriptionDeal(
         id: 'apple_music_family',
@@ -293,6 +472,15 @@ class DealsRepository {
         affiliateUrl: 'https://music.apple.com/',
         affiliateNetwork: 'impact',
         dealType: DealType.familyPlan,
+        regionalPrices: {
+          'US': '\$16.99/mo',
+          'EU': '€16.99/mo',
+          'UK': '£16.99/mo',
+          'CA': 'CA\$16.99/mo',
+          'AU': 'A\$22.99/mo',
+          'IN': '₹149/mo',
+          'BR': 'R\$34.90/mo',
+        },
       ),
       SubscriptionDeal(
         id: 'youtube_premium_1',
@@ -305,6 +493,15 @@ class DealsRepository {
         affiliateUrl: 'https://www.youtube.com/premium',
         affiliateNetwork: 'impact',
         dealType: DealType.freeTrial,
+        regionalPrices: {
+          'US': '\$13.99/mo after',
+          'EU': '€12.99/mo after',
+          'UK': '£12.99/mo after',
+          'CA': 'CA\$13.99/mo after',
+          'AU': 'A\$16.99/mo after',
+          'IN': '₹129/mo after',
+          'BR': 'R\$24.90/mo after',
+        },
       ),
       SubscriptionDeal(
         id: 'youtube_family',
@@ -317,6 +514,15 @@ class DealsRepository {
         affiliateUrl: 'https://www.youtube.com/premium/family',
         affiliateNetwork: 'impact',
         dealType: DealType.familyPlan,
+        regionalPrices: {
+          'US': '\$22.99/mo',
+          'EU': '€23.99/mo',
+          'UK': '£19.99/mo',
+          'CA': 'CA\$22.99/mo',
+          'AU': 'A\$29.99/mo',
+          'IN': '₹189/mo',
+          'BR': 'R\$41.90/mo',
+        },
       ),
 
       // Other Services
@@ -332,6 +538,16 @@ class DealsRepository {
         affiliateUrl: 'https://nordvpn.com/',
         affiliateNetwork: 'admitad',
         dealType: DealType.discount,
+        regionalPrices: {
+          'US': '\$3.79/mo',
+          'EU': '€3.79/mo',
+          'UK': '£2.99/mo',
+        },
+        regionalOriginalPrices: {
+          'US': '\$11.99/mo',
+          'EU': '€11.99/mo',
+          'UK': '£10.99/mo',
+        },
       ),
       SubscriptionDeal(
         id: 'expressvpn_1',
@@ -344,6 +560,11 @@ class DealsRepository {
         affiliateUrl: 'https://www.expressvpn.com/',
         affiliateNetwork: 'impact',
         dealType: DealType.discount,
+        regionalPrices: {
+          'US': '\$6.67/mo',
+          'EU': '€6.67/mo',
+          'UK': '£5.50/mo',
+        },
       ),
       SubscriptionDeal(
         id: 'crunchyroll_1',
@@ -356,6 +577,13 @@ class DealsRepository {
         affiliateUrl: 'https://www.crunchyroll.com/',
         affiliateNetwork: 'impact',
         dealType: DealType.freeTrial,
+        regionalPrices: {
+          'US': '\$7.99/mo after',
+          'EU': '€6.99/mo after',
+          'UK': '£6.50/mo after',
+          'AU': 'A\$9.99/mo after',
+          'BR': 'R\$25.00/mo after',
+        },
       ),
       SubscriptionDeal(
         id: 'duolingo_1',
@@ -368,6 +596,13 @@ class DealsRepository {
         affiliateUrl: 'https://www.duolingo.com/plus',
         affiliateNetwork: 'impact',
         dealType: DealType.annualSavings,
+        regionalPrices: {
+          'US': '\$6.99/mo',
+          'EU': '€6.99/mo',
+          'UK': '£5.99/mo',
+          'BR': 'R\$29.90/mo',
+          'IN': '₹499/mo',
+        },
       ),
     ];
   }

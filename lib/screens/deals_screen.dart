@@ -160,7 +160,10 @@ class DealsScreen extends ConsumerWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         itemCount: filteredDeals.length,
                         itemBuilder: (context, index) {
-                          return _DealCard(deal: filteredDeals[index]);
+                          return _DealCard(
+                            deal: filteredDeals[index],
+                            countryCode: countryCode,
+                          );
                         },
                       ),
               ),
@@ -307,12 +310,18 @@ class _FilterChip extends StatelessWidget {
 
 class _DealCard extends StatelessWidget {
   final SubscriptionDeal deal;
+  final String countryCode;
 
-  const _DealCard({required this.deal});
+  const _DealCard({
+    required this.deal,
+    required this.countryCode,
+  });
 
   @override
   Widget build(BuildContext context) {
     final brand = SubscriptionBrands.getById(deal.brandId);
+    final displayPrice = deal.getPriceForRegion(countryCode);
+    final displayOriginalPrice = deal.getOriginalPriceForRegion(countryCode);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -430,9 +439,9 @@ class _DealCard extends StatelessWidget {
               // Price row
               Row(
                 children: [
-                  if (deal.originalPrice != null) ...[
+                  if (displayOriginalPrice != null) ...[
                     Text(
-                      deal.originalPrice!,
+                      displayOriginalPrice,
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey[500],
@@ -441,9 +450,9 @@ class _DealCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                   ],
-                  if (deal.dealPrice != null)
+                  if (displayPrice != null)
                     Text(
-                      deal.dealPrice!,
+                      displayPrice,
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
