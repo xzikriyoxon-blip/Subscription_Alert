@@ -25,7 +25,6 @@ jobs:
       ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
       ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
       ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-      PLAY_STORE_JSON_KEY: ${{ secrets.PLAY_STORE_JSON_KEY }}
 
     steps:
       - name: Checkout
@@ -453,20 +452,3 @@ jobs:
           name: dart-debug-symbols
           if-no-files-found: ignore
           path: build/dart-debug-symbols.zip
-
-      # Auto-publish to Google Play Console (internal track)
-      - name: Decode Play Store service account key
-        if: env.ANDROID_KEYSTORE_BASE64 != '' && env.PLAY_STORE_JSON_KEY != ''
-        env:
-          PLAY_STORE_JSON_KEY: ${{ secrets.PLAY_STORE_JSON_KEY }}
-        run: |
-          printf '%s' "$PLAY_STORE_JSON_KEY" > android/app/play-store-key.json
-
-      - name: Publish to Play Console (internal track)
-        if: env.ANDROID_KEYSTORE_BASE64 != '' && env.PLAY_STORE_JSON_KEY != ''
-        env:
-          PLAY_STORE_JSON_KEY: ${{ secrets.PLAY_STORE_JSON_KEY }}
-        shell: bash
-        run: |
-          cd android
-          ./gradlew publishReleaseBundle --stacktrace
