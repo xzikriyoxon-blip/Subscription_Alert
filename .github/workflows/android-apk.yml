@@ -370,7 +370,7 @@ jobs:
 
       - name: Build release APK (optional)
         if: env.ANDROID_KEYSTORE_BASE64 != ''
-        run: flutter build apk --release
+        run: flutter build apk --release --obfuscate --split-debug-info=build/symbols
 
       - name: Upload release APK artifact (optional)
         if: env.ANDROID_KEYSTORE_BASE64 != ''
@@ -382,7 +382,7 @@ jobs:
       # Play Store prefers Android App Bundles (AAB)
       - name: Build release AAB (optional)
         if: env.ANDROID_KEYSTORE_BASE64 != ''
-        run: flutter build appbundle --release
+        run: flutter build appbundle --release --obfuscate --split-debug-info=build/symbols
 
       - name: Upload release AAB artifact (optional)
         if: env.ANDROID_KEYSTORE_BASE64 != ''
@@ -390,3 +390,29 @@ jobs:
         with:
           name: app-release-aab
           path: build/app/outputs/bundle/release/app-release.aab
+
+      # Upload mapping.txt for Play Console (ReTrace/R8 deobfuscation)
+      - name: Upload mapping.txt artifact
+        if: env.ANDROID_KEYSTORE_BASE64 != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: mapping-txt
+          if-no-files-found: ignore
+          path: android/app/build/outputs/mapping/release/mapping.txt
+
+      # Upload native debug symbols for Play Console
+      - name: Package and upload native debug symbols
+        if: env.ANDROID_KEYSTORE_BASE64 != ''
+        shell: bash
+        run: |
+          if [ -d "build/symbols" ]; then
+            cd build && zip -r native-debug-symbols.zip symbols
+          fi
+      
+      - name: Upload native debug symbols artifact
+        if: env.ANDROID_KEYSTORE_BASE64 != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-debug-symbols
+          if-no-files-found: ignore
+          path: build/native-debug-symbols.zip
