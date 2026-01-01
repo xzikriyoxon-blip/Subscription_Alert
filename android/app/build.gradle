@@ -94,6 +94,11 @@ android {
                 signingConfig signingConfigs.release
             }
 
+            // Include native debug symbols in the AAB for Play Console crash reports
+            ndk {
+                debugSymbolLevel 'FULL'
+            }
+
             // IMPORTANT:
             // flutter_local_notifications persists scheduled notifications as JSON and uses Gson TypeToken.
             // When R8/ProGuard removes generic signature metadata, it can crash at runtime with:
