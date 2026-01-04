@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +11,7 @@ import '../providers/premium_providers.dart';
 import '../widgets/brand_selection_dialog.dart';
 import '../widgets/currency_selection_dialog.dart';
 import '../services/ad_service.dart';
+import '../services/notification_service.dart';
 
 /// Screen for adding or editing a subscription.
 /// 
@@ -64,7 +66,17 @@ class _AddEditSubscriptionScreenState
       text: sub?.price.toStringAsFixed(2) ?? '',
     );
     _selectedCycle = sub?.cycle ?? 'monthly';
-    _selectedCurrency = sub?.currency ?? 'USD';
+    
+    // Use locale-based currency for new subscriptions, or existing currency for edits
+    if (sub != null) {
+      _selectedCurrency = sub.currency;
+    } else {
+      // Detect currency from device locale
+      final locale = ui.PlatformDispatcher.instance.locale;
+      final localeString = '${locale.languageCode}_${locale.countryCode ?? ''}';
+      _selectedCurrency = Currencies.getDefaultCurrencyFromLocale(localeString);
+    }
+    
     _selectedDate = sub?.nextPaymentDate ?? DateTime.now().add(
       const Duration(days: 30),
     );
@@ -160,12 +172,60 @@ class _AddEditSubscriptionScreenState
       }
     } catch (e) {
       if (mounted) {
+        String errorMessage = 'Failed to save: $e';
+        
+        // Check for specific errors and provide user-friendly messages
+        final errorString = e.toString().toLowerCase();
+        if (errorString.contains('permission-denied') || 
+            errorString.contains('permission_denied')) {
+          errorMessage = 'Permission denied. Please sign out and sign in again.';
+        } else if (errorString.contains('exact_alarms_not_permitted') ||
+                   errorString.contains('exact alarms')) {
+          errorMessage = 'Notification permission needed. The subscription was saved, but notifications may be delayed.';
+          // Still show success since the subscription was likely saved
+          if (mounted) {
+            Navigator.of(context).pop();
+            _showAlarmPermissionDialog();
+            return;
+          }
+        } else if (errorString.contains('network') || 
+                   errorString.contains('unavailable')) {
+          errorMessage = 'Network error. Please check your internet connection.';
+        }
+        
         setState(() {
-          _errorMessage = 'Failed to save: $e';
+          _errorMessage = errorMessage;
           _isLoading = false;
         });
       }
     }
+  }
+
+  /// Shows a dialog explaining alarm permission is needed.
+  void _showAlarmPermissionDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Enable Exact Alarms'),
+        content: const Text(
+          'To receive payment reminders at the exact time, please enable "Alarms & reminders" permission in system settings.\n\n'
+          'Without this permission, reminders may be delayed by a few minutes.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Later'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              NotificationService().openExactAlarmSettings();
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Opens the date picker to select the next payment date.

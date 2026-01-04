@@ -316,11 +316,6 @@ class GoogleCalendarSyncService {
     return buffer.toString();
   }
 
-  /// Format date as YYYY-MM-DD for Google Calendar.
-  String _formatDate(DateTime date) {
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-  }
-
   /// Parse color from hex string.
   int? _parseColor(String? hexColor) {
     if (hexColor == null) return null;

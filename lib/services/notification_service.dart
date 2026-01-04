@@ -5,6 +5,8 @@ import 'package:timezone/data/latest.dart' as tz_data;
 import '../models/subscription.dart';
 import 'package:intl/intl.dart';
 import 'notification_preferences_store.dart';
+import 'package:android_intent_plus/android_intent.dart';
+import 'dart:io' show Platform;
 
 /// Service class for managing local notifications.
 /// 
@@ -22,6 +24,7 @@ class NotificationService {
   final NotificationPreferencesStore _prefsStore = NotificationPreferencesStore();
 
   bool _isInitialized = false;
+  bool _exactAlarmsPermitted = true; // Assume true until proven otherwise
 
   /// Channel ID for Android notifications
   static const String _channelId = 'subscription_reminders';
@@ -128,9 +131,11 @@ class NotificationService {
       // present on some platforms.
       try {
         final dynamic androidDynamic = android;
-        await androidDynamic.requestExactAlarmsPermission();
+        final exactAlarmGranted = await androidDynamic.requestExactAlarmsPermission();
+        _exactAlarmsPermitted = exactAlarmGranted ?? true;
       } catch (_) {
         // Ignore if not supported or denied.
+        _exactAlarmsPermitted = true; // Assume permitted on older devices
       }
 
       return granted ?? false;
@@ -138,6 +143,54 @@ class NotificationService {
 
     return true;
   }
+
+  /// Checks if exact alarms are permitted on Android 12+.
+  Future<bool> canScheduleExactAlarms() async {
+    if (kIsWeb) return true;
+    if (!Platform.isAndroid) return true;
+    
+    final android = _notifications
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+    
+    if (android != null) {
+      try {
+        final dynamic androidDynamic = android;
+        final canSchedule = await androidDynamic.canScheduleExactNotifications();
+        _exactAlarmsPermitted = canSchedule ?? true;
+        return _exactAlarmsPermitted;
+      } catch (_) {
+        return true; // Assume permitted on older devices
+      }
+    }
+    return true;
+  }
+
+  /// Opens system settings for exact alarm permission.
+  Future<void> openExactAlarmSettings() async {
+    if (!Platform.isAndroid) return;
+    
+    try {
+      const intent = AndroidIntent(
+        action: 'android.settings.REQUEST_SCHEDULE_EXACT_ALARM',
+      );
+      await intent.launch();
+    } catch (_) {
+      // Fallback to app settings if specific intent not available
+      try {
+        const fallbackIntent = AndroidIntent(
+          action: 'android.settings.APPLICATION_DETAILS_SETTINGS',
+          data: 'package:com.xzikriyoxon.subscriptionalert',
+        );
+        await fallbackIntent.launch();
+      } catch (_) {
+        // Ignore if unable to open settings
+      }
+    }
+  }
+
+  /// Whether exact alarms are currently permitted.
+  bool get exactAlarmsPermitted => _exactAlarmsPermitted;
 
   /// Generates a unique notification ID for a given subscription and
   /// reminder offset (days before).
@@ -266,21 +319,51 @@ class NotificationService {
       final scheduled = tz.TZDateTime.from(notificationTime, tz.local);
       final id = _generateNotificationIdForDaysBefore(subscription.id, daysBefore);
 
-      await _notifications.zonedSchedule(
-        id,
-        _titleForDaysBefore(daysBefore),
-        daysBefore <= 0
-            ? '${subscription.name} payment of ${subscription.price.toStringAsFixed(2)} ${subscription.currency} is due today!'
-            : '${subscription.name} payment of ${subscription.price.toStringAsFixed(2)} ${subscription.currency} is due on $formattedDate',
-        scheduled,
-        notificationDetails,
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-        payload: subscription.id,
-      );
+      // Check if exact alarms are permitted, use inexact as fallback
+      final canUseExact = await canScheduleExactAlarms();
+      final scheduleMode = canUseExact 
+          ? AndroidScheduleMode.exactAllowWhileIdle 
+          : AndroidScheduleMode.inexactAllowWhileIdle;
 
-      scheduledDays.add(daysBefore);
+      try {
+        await _notifications.zonedSchedule(
+          id,
+          _titleForDaysBefore(daysBefore),
+          daysBefore <= 0
+              ? '${subscription.name} payment of ${subscription.price.toStringAsFixed(2)} ${subscription.currency} is due today!'
+              : '${subscription.name} payment of ${subscription.price.toStringAsFixed(2)} ${subscription.currency} is due on $formattedDate',
+          scheduled,
+          notificationDetails,
+          androidScheduleMode: scheduleMode,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+          payload: subscription.id,
+        );
+        scheduledDays.add(daysBefore);
+      } catch (e) {
+        // If exact alarms fail, try with inexact alarms
+        if (scheduleMode == AndroidScheduleMode.exactAllowWhileIdle) {
+          _exactAlarmsPermitted = false;
+          try {
+            await _notifications.zonedSchedule(
+              id,
+              _titleForDaysBefore(daysBefore),
+              daysBefore <= 0
+                  ? '${subscription.name} payment of ${subscription.price.toStringAsFixed(2)} ${subscription.currency} is due today!'
+                  : '${subscription.name} payment of ${subscription.price.toStringAsFixed(2)} ${subscription.currency} is due on $formattedDate',
+              scheduled,
+              notificationDetails,
+              androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+              uiLocalNotificationDateInterpretation:
+                  UILocalNotificationDateInterpretation.absoluteTime,
+              payload: subscription.id,
+            );
+            scheduledDays.add(daysBefore);
+          } catch (_) {
+            // Notification scheduling failed completely
+          }
+        }
+      }
     }
 
     await _prefsStore.saveLastScheduledDays(subscription.id, scheduledDays);

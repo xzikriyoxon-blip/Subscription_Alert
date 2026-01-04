@@ -219,8 +219,8 @@ class HomeScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 8),
 
-              // For premium users, show converted total
-              if (isPremium)
+              // For premium users with conversion enabled, show converted total
+              if (isPremium && ref.watch(currencyConversionEnabledProvider))
                 _PremiumTotalDisplay(
                   monthlyByCurrency: monthlyByCurrency,
                   yearlyByCurrency: yearlyByCurrency,
@@ -228,7 +228,7 @@ class HomeScreen extends ConsumerWidget {
                   numberFormat: numberFormat,
                 )
               else ...[
-                // Show monthly costs by currency (non-premium)
+                // Show monthly costs by currency (non-premium or conversion disabled)
                 if (monthlyByCurrency.isNotEmpty)
                   ...monthlyByCurrency.entries.map((e) => Text(
                         '${numberFormat.format(e.value)} ${e.key}/mo',

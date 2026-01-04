@@ -104,6 +104,37 @@ class BaseCurrencyNotifier extends StateNotifier<String> {
   }
 }
 
+/// StateNotifier for currency conversion enabled state
+class CurrencyConversionEnabledNotifier extends StateNotifier<bool> {
+  CurrencyConversionEnabledNotifier() : super(false) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    // Default to false - user must explicitly enable currency conversion
+    final enabled = prefs.getBool('currency_conversion_enabled') ?? false;
+    state = enabled;
+  }
+
+  Future<void> setEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('currency_conversion_enabled', enabled);
+    state = enabled;
+  }
+}
+
+/// Provider for whether currency conversion is enabled
+final currencyConversionEnabledNotifierProvider = 
+    StateNotifierProvider<CurrencyConversionEnabledNotifier, bool>((ref) {
+  return CurrencyConversionEnabledNotifier();
+});
+
+/// Provider for currency conversion enabled state (convenience)
+final currencyConversionEnabledProvider = Provider<bool>((ref) {
+  return ref.watch(currencyConversionEnabledNotifierProvider);
+});
+
 /// Provider for the user's base currency - uses local storage for immediate updates
 final baseCurrencyNotifierProvider = StateNotifierProvider<BaseCurrencyNotifier, String>((ref) {
   return BaseCurrencyNotifier();

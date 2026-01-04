@@ -155,6 +155,57 @@ class Currencies {
     Currency(code: 'USDC', name: 'USD Coin', symbol: '\$', flag: '🪙'),
   ];
 
+  /// Map of country codes to currency codes for locale detection.
+  static const Map<String, String> _countryToCurrency = {
+    'US': 'USD', 'EU': 'EUR', 'GB': 'GBP', 'JP': 'JPY', 'CN': 'CNY',
+    'CH': 'CHF', 'CA': 'CAD', 'AU': 'AUD', 'NZ': 'NZD', 'UZ': 'UZS',
+    'RU': 'RUB', 'KZ': 'KZT', 'UA': 'UAH', 'BY': 'BYN', 'GE': 'GEL',
+    'AM': 'AMD', 'AZ': 'AZN', 'KG': 'KGS', 'TJ': 'TJS', 'TM': 'TMT',
+    'MD': 'MDL', 'IN': 'INR', 'KR': 'KRW', 'SG': 'SGD', 'HK': 'HKD',
+    'TW': 'TWD', 'TH': 'THB', 'MY': 'MYR', 'ID': 'IDR', 'PH': 'PHP',
+    'VN': 'VND', 'PK': 'PKR', 'BD': 'BDT', 'AE': 'AED', 'SA': 'SAR',
+    'IL': 'ILS', 'TR': 'TRY', 'EG': 'EGP', 'NG': 'NGN', 'ZA': 'ZAR',
+    'KE': 'KES', 'GH': 'GHS', 'MA': 'MAD', 'BR': 'BRL', 'MX': 'MXN',
+    'AR': 'ARS', 'CL': 'CLP', 'CO': 'COP', 'PE': 'PEN', 'PL': 'PLN',
+    'CZ': 'CZK', 'HU': 'HUF', 'RO': 'RON', 'BG': 'BGN', 'HR': 'HRK',
+    'RS': 'RSD', 'SE': 'SEK', 'NO': 'NOK', 'DK': 'DKK', 'IS': 'ISK',
+    // Eurozone countries
+    'DE': 'EUR', 'FR': 'EUR', 'IT': 'EUR', 'ES': 'EUR', 'PT': 'EUR',
+    'NL': 'EUR', 'BE': 'EUR', 'AT': 'EUR', 'IE': 'EUR', 'FI': 'EUR',
+    'GR': 'EUR', 'SK': 'EUR', 'SI': 'EUR', 'LT': 'EUR', 'LV': 'EUR',
+    'EE': 'EUR', 'LU': 'EUR', 'MT': 'EUR', 'CY': 'EUR',
+  };
+
+  /// Get currency code for a given country code (ISO 3166-1 alpha-2).
+  static String? getCurrencyForCountry(String countryCode) {
+    return _countryToCurrency[countryCode.toUpperCase()];
+  }
+
+  /// Get default currency based on device locale.
+  /// Falls back to USD if locale cannot be determined.
+  static String getDefaultCurrencyFromLocale(String? localeString) {
+    if (localeString == null || localeString.isEmpty) {
+      return 'USD';
+    }
+    
+    // Locale can be "en_US", "en-US", "en", etc.
+    String? countryCode;
+    if (localeString.contains('_')) {
+      countryCode = localeString.split('_').last;
+    } else if (localeString.contains('-')) {
+      countryCode = localeString.split('-').last;
+    }
+    
+    if (countryCode != null && countryCode.length == 2) {
+      final currency = getCurrencyForCountry(countryCode);
+      if (currency != null) {
+        return currency;
+      }
+    }
+    
+    return 'USD';
+  }
+
   /// Popular currencies shown at the top.
   static const List<String> popularCodes = [
     'UZS', 'USD', 'EUR', 'RUB', 'GBP', 'KZT', 'UAH', 'TRY', 'CNY', 'JPY', 'INR', 'AED',

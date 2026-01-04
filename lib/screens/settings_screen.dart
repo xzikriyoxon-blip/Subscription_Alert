@@ -57,6 +57,7 @@ class SettingsScreen extends ConsumerWidget {
     final themeMode = ref.watch(appThemeModeProvider);
     final calendarSyncEnabled = ref.watch(calendarSyncEnabledProvider);
     final notificationPrefs = ref.watch(notificationPreferencesProvider);
+    final currencyConversionEnabled = ref.watch(currencyConversionEnabledProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -120,7 +121,7 @@ class SettingsScreen extends ConsumerWidget {
 
           const SizedBox(height: 32),
 
-          // Base Currency Section (Premium)
+          // Currency Conversion Section (Premium)
           Text(
             strings.baseCurrency,
             style: const TextStyle(
@@ -134,7 +135,7 @@ class SettingsScreen extends ConsumerWidget {
             style: const TextStyle(color: Colors.grey),
           ),
           const SizedBox(height: 16),
-          _buildCurrencySection(context, ref, isPremium, baseCurrency, strings),
+          _buildCurrencyConversionSection(context, ref, isPremium, baseCurrency, currencyConversionEnabled, strings),
 
           const SizedBox(height: 32),
 
@@ -274,6 +275,11 @@ class SettingsScreen extends ConsumerWidget {
               await notifier.setEnabled(v);
               if (v) {
                 await NotificationService().requestPermissions();
+                // Check if exact alarms are permitted
+                final canUseExact = await NotificationService().canScheduleExactAlarms();
+                if (!canUseExact && context.mounted) {
+                  _showExactAlarmPermissionDialog(context);
+                }
               }
               await rescheduleAll();
             },
@@ -527,11 +533,12 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildCurrencySection(
+  Widget _buildCurrencyConversionSection(
     BuildContext context,
     WidgetRef ref,
     bool isPremium,
     String currentCurrency,
+    bool conversionEnabled,
     dynamic strings,
   ) {
     final currency = Currencies.all.firstWhere(
@@ -540,28 +547,47 @@ class SettingsScreen extends ConsumerWidget {
     );
 
     return Card(
-      child: ListTile(
-        leading: Container(
-          width: 32,
-          height: 32,
-          alignment: Alignment.center,
-          child: Text(currency.flag, style: const TextStyle(fontSize: 24)),
-        ),
-        title: Row(
-          children: [
-            Text('${currency.code} - ${currency.name}'),
-            if (!isPremium) ...[
-              const SizedBox(width: 8),
-              _buildPremiumBadge(),
-            ],
+      child: Column(
+        children: [
+          // Toggle for enabling/disabling currency conversion
+          SwitchListTile(
+            title: Row(
+              children: [
+                const Text('Enable currency conversion'),
+                if (!isPremium) ...[
+                  const SizedBox(width: 8),
+                  _buildPremiumBadge(),
+                ],
+              ],
+            ),
+            subtitle: const Text('Convert all amounts to your base currency'),
+            value: conversionEnabled,
+            onChanged: isPremium
+                ? (value) {
+                    ref
+                        .read(currencyConversionEnabledNotifierProvider.notifier)
+                        .setEnabled(value);
+                  }
+                : (value) => _showPremiumDialog(
+                    context, strings.currencyConversionPremium, strings),
+          ),
+          // Only show base currency selector when conversion is enabled
+          if (conversionEnabled) ...[
+            const Divider(height: 1),
+            ListTile(
+              leading: Container(
+                width: 32,
+                height: 32,
+                alignment: Alignment.center,
+                child: Text(currency.flag, style: const TextStyle(fontSize: 24)),
+              ),
+              title: Text('${currency.code} - ${currency.name}'),
+              subtitle: const Text('Base currency for conversion'),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              onTap: () => _showCurrencyDialog(context, ref, currentCurrency, strings),
+            ),
           ],
-        ),
-        subtitle: Text(strings.currencyConversionPremium),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-        onTap: isPremium
-            ? () => _showCurrencyDialog(context, ref, currentCurrency, strings)
-            : () => _showPremiumDialog(
-                context, strings.currencyConversionPremium, strings),
+        ],
       ),
     );
   }
@@ -633,8 +659,19 @@ class SettingsScreen extends ConsumerWidget {
         }
       } catch (e) {
         if (!context.mounted) return;
+        
+        String errorMessage = 'Failed to update calendar sync';
+        final errorString = e.toString().toLowerCase();
+        if (errorString.contains('permission-denied') || 
+            errorString.contains('permission_denied')) {
+          errorMessage = 'Permission denied. Please sign out and sign in again.';
+        } else if (errorString.contains('network') || 
+                   errorString.contains('unavailable')) {
+          errorMessage = 'Network error. Please check your internet connection.';
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update calendar sync: $e')),
+          SnackBar(content: Text(errorMessage)),
         );
       }
     }
@@ -936,6 +973,32 @@ class SettingsScreen extends ConsumerWidget {
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: Text(strings.cancel),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showExactAlarmPermissionDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Enable Exact Alarms'),
+        content: const Text(
+          'To receive payment reminders at the exact time, please enable "Alarms & reminders" permission in system settings.\n\n'
+          'Without this permission, reminders may be delayed by a few minutes.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Later'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              NotificationService().openExactAlarmSettings();
+            },
+            child: const Text('Open Settings'),
           ),
         ],
       ),
