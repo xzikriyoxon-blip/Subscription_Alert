@@ -45,7 +45,7 @@ android {
     // with all (or nearly all) devices during review.
     //
     // Update these intentionally when Google Play's target API requirements change.
-    compileSdk 35
+    compileSdk 36
     ndkVersion flutter.ndkVersion
 
     compileOptions {
@@ -70,7 +70,7 @@ android {
         // :app:checkDebugAarMetadata when the project minSdk is lower.
         minSdkVersion 26
         // Target API can lag compileSdk; keep this aligned with Play requirements.
-        targetSdkVersion 35
+        targetSdkVersion 36
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
         // Required for flutter_local_notifications
