@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
@@ -298,6 +298,14 @@ class NotificationService {
 
     final scheduledDays = <int>[];
 
+    // Check exact alarm permission once before scheduling
+    bool canUseExact = true;
+    try {
+      canUseExact = await canScheduleExactAlarms();
+    } catch (_) {
+      canUseExact = false;
+    }
+
     for (final daysBefore in preferences.daysBefore) {
       final targetDay = paymentDate.subtract(Duration(days: daysBefore));
 
@@ -319,8 +327,7 @@ class NotificationService {
       final scheduled = tz.TZDateTime.from(notificationTime, tz.local);
       final id = _generateNotificationIdForDaysBefore(subscription.id, daysBefore);
 
-      // Check if exact alarms are permitted, use inexact as fallback
-      final canUseExact = await canScheduleExactAlarms();
+      // Use inexact alarms as default fallback to avoid permission issues
       final scheduleMode = canUseExact 
           ? AndroidScheduleMode.exactAllowWhileIdle 
           : AndroidScheduleMode.inexactAllowWhileIdle;
@@ -341,8 +348,8 @@ class NotificationService {
         );
         scheduledDays.add(daysBefore);
       } catch (e) {
-        // If exact alarms fail, try with inexact alarms
-        if (scheduleMode == AndroidScheduleMode.exactAllowWhileIdle) {
+        // If scheduling fails (e.g., exact alarms not permitted), try with inexact
+        if (canUseExact) {
           _exactAlarmsPermitted = false;
           try {
             await _notifications.zonedSchedule(
@@ -359,9 +366,12 @@ class NotificationService {
               payload: subscription.id,
             );
             scheduledDays.add(daysBefore);
-          } catch (_) {
-            // Notification scheduling failed completely
+          } catch (fallbackError) {
+            // Notification scheduling failed completely - just skip this notification
+            debugPrint('NotificationService: Failed to schedule notification: $fallbackError');
           }
+        } else {
+          debugPrint('NotificationService: Failed to schedule notification: $e');
         }
       }
     }

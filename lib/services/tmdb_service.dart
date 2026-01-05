@@ -158,4 +158,25 @@ class TMDBService {
     }
     return [];
   }
+
+  /// Get content details by ID with providers.
+  Future<StreamingContent?> getContentWithProviders(int id, String mediaType) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/$mediaType/$id?api_key=$_apiKey'),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        // Add media_type since the detail endpoint doesn't include it
+        data['media_type'] = mediaType;
+        final content = StreamingContent.fromTMDB(data);
+        final providers = await getProviders(id, mediaType);
+        return content.copyWith(providers: providers);
+      }
+    } catch (e) {
+      print('TMDB get content error: $e');
+    }
+    return null;
+  }
 }

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/subscription.dart';
 import '../models/subscription_history.dart';
@@ -103,7 +104,15 @@ class SubscriptionController {
 
     // Create subscription with the new ID for notification scheduling
     final newSubscription = subscription.copyWith(id: subscriptionId);
-    await _notificationService.scheduleSubscriptionNotifications(newSubscription);
+    
+    // Try to schedule notifications, but don't fail the whole operation if it fails
+    try {
+      await _notificationService.scheduleSubscriptionNotifications(newSubscription);
+    } catch (e) {
+      // Notification scheduling failed (e.g., exact alarms not permitted)
+      // The subscription is still saved successfully
+      debugPrint('SubscriptionController: Failed to schedule notifications: $e');
+    }
 
     return subscriptionId;
   }
@@ -113,8 +122,13 @@ class SubscriptionController {
     await _firestoreService.updateSubscription(_userId, subscription);
     
     // Cancel old notifications and schedule new ones
-    await _notificationService.cancelSubscriptionNotifications(subscription);
-    await _notificationService.scheduleSubscriptionNotifications(subscription);
+    try {
+      await _notificationService.cancelSubscriptionNotifications(subscription);
+      await _notificationService.scheduleSubscriptionNotifications(subscription);
+    } catch (e) {
+      // Notification scheduling failed (e.g., exact alarms not permitted)
+      debugPrint('SubscriptionController: Failed to reschedule notifications: $e');
+    }
   }
 
   /// Deletes a subscription and cancels its notifications.
@@ -127,10 +141,15 @@ class SubscriptionController {
   /// 
   /// Useful when app is opened or after significant time has passed.
   Future<void> rescheduleAllNotifications(List<Subscription> subscriptions) async {
-    await _notificationService.cancelAllNotifications();
-    
-    for (final subscription in subscriptions) {
-      await _notificationService.scheduleSubscriptionNotifications(subscription);
+    try {
+      await _notificationService.cancelAllNotifications();
+      
+      for (final subscription in subscriptions) {
+        await _notificationService.scheduleSubscriptionNotifications(subscription);
+      }
+    } catch (e) {
+      // Notification scheduling failed (e.g., exact alarms not permitted)
+      debugPrint('SubscriptionController: Failed to reschedule all notifications: $e');
     }
   }
 }

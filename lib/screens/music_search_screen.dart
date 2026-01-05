@@ -331,6 +331,7 @@ class _MusicSearchScreenState extends ConsumerState<MusicSearchScreen>
         return _SongFavoriteCard(
           favorite: favorite,
           strings: strings,
+          onTap: () => _openFavoriteTrack(favorite),
           onRemove: () async {
             await ref.read(mediaFavoritesProvider.notifier).removeFavorite(favorite.id);
             if (mounted) {
@@ -342,6 +343,24 @@ class _MusicSearchScreenState extends ConsumerState<MusicSearchScreen>
         );
       },
     );
+  }
+
+  Future<void> _openFavoriteTrack(MediaFavorite favorite) async {
+    // Get Deezer track ID from extraData
+    final deezerId = favorite.extraData?['deezerId'] as int?;
+    if (deezerId == null) return;
+    
+    // Open the Deezer track in browser
+    final url = 'https://www.deezer.com/track/$deezerId';
+    try {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open track')),
+        );
+      }
+    }
   }
 }
 
@@ -821,11 +840,13 @@ class _PlatformButton extends StatelessWidget {
 class _SongFavoriteCard extends StatelessWidget {
   final MediaFavorite favorite;
   final VoidCallback onRemove;
+  final VoidCallback? onTap;
   final dynamic strings;
 
   const _SongFavoriteCard({
     required this.favorite,
     required this.onRemove,
+    this.onTap,
     this.strings,
   });
 
@@ -839,70 +860,87 @@ class _SongFavoriteCard extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            // Album art
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: favorite.imageUrl != null && favorite.imageUrl!.isNotEmpty
-                  ? Image.network(
-                      favorite.imageUrl!,
-                      width: 56,
-                      height: 56,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _buildPlaceholder(),
-                    )
-                  : _buildPlaceholder(),
-            ),
-            const SizedBox(width: 12),
-
-            // Track info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    favorite.title,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    artistName,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey[600],
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '$albumName • $durationFormatted',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey[500],
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              // Album art
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: favorite.imageUrl != null && favorite.imageUrl!.isNotEmpty
+                    ? Image.network(
+                        favorite.imageUrl!,
+                        width: 56,
+                        height: 56,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _buildPlaceholder(),
+                      )
+                    : _buildPlaceholder(),
               ),
-            ),
+              const SizedBox(width: 12),
 
-            // Remove button
-            IconButton(
-              icon: const Icon(Icons.favorite, color: Colors.red),
-              onPressed: onRemove,
-              tooltip: 'Remove from favorites',
-            ),
-          ],
+              // Track info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      favorite.title,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      artistName,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '$albumName • $durationFormatted',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey[500],
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Text(
+                          'Tap to open',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.blue[400],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // Remove button
+              IconButton(
+                icon: const Icon(Icons.favorite, color: Colors.red),
+                onPressed: onRemove,
+                tooltip: 'Remove from favorites',
+              ),
+            ],
+          ),
         ),
       ),
     );

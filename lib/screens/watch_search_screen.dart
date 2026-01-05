@@ -372,6 +372,7 @@ class _WatchSearchScreenState extends ConsumerState<WatchSearchScreen>
         return _FavoriteCard(
           favorite: favorite,
           strings: strings,
+          onTap: () => _showFavoriteDetails(context, favorite, strings),
           onRemove: () async {
             await ref.read(mediaFavoritesProvider.notifier).removeFavorite(favorite.id);
             if (mounted) {
@@ -383,6 +384,32 @@ class _WatchSearchScreenState extends ConsumerState<WatchSearchScreen>
         );
       },
     );
+  }
+
+  Future<void> _showFavoriteDetails(BuildContext context, MediaFavorite favorite, dynamic strings) async {
+    // Fetch content details from TMDB
+    try {
+      final tmdbId = favorite.extraData?['tmdbId'] as int?;
+      if (tmdbId == null) return;
+      
+      final mediaType = favorite.extraData?['mediaType'] as String? ?? 
+          (favorite.type == MediaType.movie ? 'movie' : 'tv');
+      
+      final content = await _tmdb.getContentWithProviders(
+        tmdbId,
+        mediaType,
+      );
+      
+      if (content != null && mounted) {
+        _showContentDetails(content);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not load details')),
+        );
+      }
+    }
   }
 }
 
@@ -982,11 +1009,13 @@ class _ProviderChip extends StatelessWidget {
 class _FavoriteCard extends StatelessWidget {
   final MediaFavorite favorite;
   final VoidCallback onRemove;
+  final VoidCallback? onTap;
   final dynamic strings;
 
   const _FavoriteCard({
     required this.favorite,
     required this.onRemove,
+    this.onTap,
     this.strings,
   });
 
@@ -996,93 +1025,105 @@ class _FavoriteCard extends StatelessWidget {
     
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Poster
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: favorite.imageUrl != null && favorite.imageUrl!.isNotEmpty
-                  ? Image.network(
-                      favorite.imageUrl!,
-                      width: 80,
-                      height: 120,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _buildPlaceholder(isMovie),
-                    )
-                  : _buildPlaceholder(isMovie),
-            ),
-            const SizedBox(width: 12),
-            
-            // Info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    favorite.title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      if (favorite.subtitle != null && favorite.subtitle!.isNotEmpty) ...[
-                        Text(
-                          favorite.subtitle!,
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 13,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                      ],
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isMovie ? Colors.blue[100] : Colors.purple[100],
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          isMovie 
-                              ? (strings?.movie ?? 'Movie') 
-                              : (strings?.tvShow ?? 'TV Show'),
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: isMovie ? Colors.blue[800] : Colors.purple[800],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Added ${_formatDate(favorite.addedAt)}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[500],
-                    ),
-                  ),
-                ],
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Poster
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: favorite.imageUrl != null && favorite.imageUrl!.isNotEmpty
+                    ? Image.network(
+                        favorite.imageUrl!,
+                        width: 80,
+                        height: 120,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _buildPlaceholder(isMovie),
+                      )
+                    : _buildPlaceholder(isMovie),
               ),
-            ),
-            
-            // Remove button
-            IconButton(
-              icon: const Icon(Icons.favorite, color: Colors.red),
-              onPressed: onRemove,
-              tooltip: 'Remove from favorites',
-            ),
-          ],
+              const SizedBox(width: 12),
+              
+              // Info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      favorite.title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        if (favorite.subtitle != null && favorite.subtitle!.isNotEmpty) ...[
+                          Text(
+                            favorite.subtitle!,
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isMovie ? Colors.blue[100] : Colors.purple[100],
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            isMovie 
+                                ? (strings?.movie ?? 'Movie') 
+                                : (strings?.tvShow ?? 'TV Show'),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: isMovie ? Colors.blue[800] : Colors.purple[800],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Added ${_formatDate(favorite.addedAt)}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Tap to view details',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.blue[400],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Remove button
+              IconButton(
+                icon: const Icon(Icons.favorite, color: Colors.red),
+                onPressed: onRemove,
+                tooltip: 'Remove from favorites',
+              ),
+            ],
+          ),
         ),
       ),
     );

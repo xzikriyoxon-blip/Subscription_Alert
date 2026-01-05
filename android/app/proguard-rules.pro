@@ -13,3 +13,7 @@
 # Keep Gson TypeToken and subclasses
 -keep class com.google.gson.reflect.TypeToken { *; }
 -keep class * extends com.google.gson.reflect.TypeToken { *; }
+
+# Keep Home Widget provider class
+-keep class com.xzikriyoxon.subscriptionalert.SubscriptionWidgetProvider { *; }
+-keep class es.antonborri.home_widget.** { *; }
