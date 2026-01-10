@@ -10,13 +10,13 @@ import '../services/exchange_rate_service.dart';
 import '../widgets/subscription_list_item.dart';
 import '../widgets/subscription_detail_dialog.dart';
 import '../widgets/banner_ad_widget.dart';
+import '../widgets/premium_upgrade_dialog.dart';
 import 'add_edit_subscription_screen.dart';
 import 'history_screen.dart';
 import 'settings_screen.dart';
 import 'watch_search_screen.dart';
 import 'music_search_screen.dart';
 import 'deals_screen.dart';
-import 'referral_screen.dart';
 import 'spend_health_screen.dart';
 import 'timeline_screen.dart';
 import 'wishlist_screen.dart';
@@ -144,18 +144,13 @@ class HomeScreen extends ConsumerWidget {
     final activeSubscriptions =
         subscriptions.where((s) => !s.isCancelled).toList();
 
-    // Group subscriptions by currency and calculate totals
+    // Group subscriptions by currency and calculate monthly totals
     final Map<String, double> monthlyByCurrency = {};
-    final Map<String, double> yearlyByCurrency = {};
 
     for (final sub in activeSubscriptions) {
       // Add all subscription prices as monthly total (regardless of cycle)
       monthlyByCurrency[sub.currency] =
           (monthlyByCurrency[sub.currency] ?? 0) + sub.price;
-
-      // Yearly is monthly total * 12
-      yearlyByCurrency[sub.currency] =
-          (yearlyByCurrency[sub.currency] ?? 0) + (sub.price * 12);
     }
 
     final numberFormat = NumberFormat('#,##0.00', 'en_US');
@@ -223,7 +218,6 @@ class HomeScreen extends ConsumerWidget {
               if (isPremium && ref.watch(currencyConversionEnabledProvider))
                 _PremiumTotalDisplay(
                   monthlyByCurrency: monthlyByCurrency,
-                  yearlyByCurrency: yearlyByCurrency,
                   baseCurrency: baseCurrency,
                   numberFormat: numberFormat,
                 )
@@ -238,19 +232,7 @@ class HomeScreen extends ConsumerWidget {
                           fontWeight: FontWeight.bold,
                         ),
                       )),
-                // Show yearly costs by currency
-                if (yearlyByCurrency.isNotEmpty) ...[
-                  if (monthlyByCurrency.isNotEmpty) const SizedBox(height: 4),
-                  ...yearlyByCurrency.entries.map((e) => Text(
-                        '${numberFormat.format(e.value)} ${e.key}/yr',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      )),
-                ],
-                if (monthlyByCurrency.isEmpty && yearlyByCurrency.isEmpty)
+                if (monthlyByCurrency.isEmpty)
                   const Text(
                     '0',
                     style: TextStyle(
@@ -270,9 +252,7 @@ class HomeScreen extends ConsumerWidget {
               ),
 
               // Premium upsell for non-premium users with multiple currencies
-              if (!isPremium &&
-                  (monthlyByCurrency.length > 1 ||
-                      yearlyByCurrency.length > 1)) ...[
+              if (!isPremium && monthlyByCurrency.length > 1) ...[
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(8),
@@ -660,9 +640,29 @@ class HomeScreen extends ConsumerWidget {
           // PREMIUM FEATURES
           _buildDrawerSectionHeader(strings.premiumFeatures),
 
+          // Get Premium button for non-premium users
+          if (!isPremium)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  showPremiumUpgradeDialog(context, ref);
+                },
+                icon: const Icon(Icons.star),
+                label: const Text('Upgrade to Premium - \$1.99'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.amber,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+
           // Where to Watch - PREMIUM
           _buildPremiumDrawerItem(
             context: context,
+            ref: ref,
             icon: Icons.live_tv,
             title: strings.whereToWatch,
             isPremium: isPremium,
@@ -676,6 +676,7 @@ class HomeScreen extends ConsumerWidget {
           // Music Search - PREMIUM
           _buildPremiumDrawerItem(
             context: context,
+            ref: ref,
             icon: Icons.music_note,
             title: strings.musicSearch,
             isPremium: isPremium,
@@ -689,6 +690,7 @@ class HomeScreen extends ConsumerWidget {
           // Deals - PREMIUM
           _buildPremiumDrawerItem(
             context: context,
+            ref: ref,
             icon: Icons.local_offer,
             title: strings.deals,
             isPremium: isPremium,
@@ -702,6 +704,7 @@ class HomeScreen extends ConsumerWidget {
           // Spend Health - PREMIUM
           _buildPremiumDrawerItem(
             context: context,
+            ref: ref,
             icon: Icons.health_and_safety,
             title: strings.spendHealth,
             isPremium: isPremium,
@@ -715,6 +718,7 @@ class HomeScreen extends ConsumerWidget {
           // Timeline - PREMIUM
           _buildPremiumDrawerItem(
             context: context,
+            ref: ref,
             icon: Icons.timeline,
             title: strings.timeline,
             isPremium: isPremium,
@@ -728,6 +732,7 @@ class HomeScreen extends ConsumerWidget {
           // Wishlist - PREMIUM
           _buildPremiumDrawerItem(
             context: context,
+            ref: ref,
             icon: Icons.favorite,
             title: strings.wishlist,
             isPremium: isPremium,
@@ -741,6 +746,7 @@ class HomeScreen extends ConsumerWidget {
           // Usage Analytics - PREMIUM
           _buildPremiumDrawerItem(
             context: context,
+            ref: ref,
             icon: Icons.analytics,
             title: strings.usageAnalytics,
             isPremium: isPremium,
@@ -756,6 +762,7 @@ class HomeScreen extends ConsumerWidget {
           // Reports - PREMIUM
           _buildPremiumDrawerItem(
             context: context,
+            ref: ref,
             icon: Icons.description,
             title: strings.reports,
             isPremium: isPremium,
@@ -763,19 +770,6 @@ class HomeScreen extends ConsumerWidget {
               Navigator.pop(context);
               Navigator.push(context,
                   MaterialPageRoute(builder: (_) => const ReportScreen()));
-            },
-          ),
-
-          // Referral/Invite - PREMIUM
-          _buildPremiumDrawerItem(
-            context: context,
-            icon: Icons.card_giftcard,
-            title: strings.inviteFriends,
-            isPremium: isPremium,
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const ReferralScreen()));
             },
           ),
 
@@ -823,6 +817,7 @@ class HomeScreen extends ConsumerWidget {
 
   Widget _buildPremiumDrawerItem({
     required BuildContext context,
+    required WidgetRef ref,
     required IconData icon,
     required String title,
     required bool isPremium,
@@ -852,7 +847,12 @@ class HomeScreen extends ConsumerWidget {
           ],
         ],
       ),
-      onTap: onTap, // All features accessible (testing mode / trial)
+      onTap: isPremium
+          ? onTap
+          : () {
+              Navigator.pop(context); // Close drawer
+              showPremiumUpgradeDialog(context, ref);
+            },
     );
   }
 }
@@ -860,13 +860,11 @@ class HomeScreen extends ConsumerWidget {
 /// Widget that displays total cost converted to base currency for premium users.
 class _PremiumTotalDisplay extends ConsumerWidget {
   final Map<String, double> monthlyByCurrency;
-  final Map<String, double> yearlyByCurrency;
   final String baseCurrency;
   final NumberFormat numberFormat;
 
   const _PremiumTotalDisplay({
     required this.monthlyByCurrency,
-    required this.yearlyByCurrency,
     required this.baseCurrency,
     required this.numberFormat,
   });
@@ -894,9 +892,8 @@ class _PremiumTotalDisplay extends ConsumerWidget {
           );
         }
 
-        final totals = snapshot.data ?? {'monthly': 0.0, 'yearly': 0.0};
+        final totals = snapshot.data ?? {'monthly': 0.0};
         final monthlyTotal = totals['monthly'] ?? 0.0;
-        final yearlyTotal = totals['yearly'] ?? 0.0;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -910,16 +907,7 @@ class _PremiumTotalDisplay extends ConsumerWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-            if (yearlyTotal > 0)
-              Text(
-                '${numberFormat.format(yearlyTotal)} $baseCurrency/yr',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            if (monthlyTotal == 0 && yearlyTotal == 0)
+            if (monthlyTotal == 0)
               const Text(
                 '0',
                 style: TextStyle(
@@ -937,7 +925,6 @@ class _PremiumTotalDisplay extends ConsumerWidget {
   Future<Map<String, double>> _calculateTotals(
       ExchangeRateService service) async {
     double monthlyTotal = 0;
-    double yearlyTotal = 0;
 
     // Convert monthly totals (these are already monthly equivalents)
     for (final entry in monthlyByCurrency.entries) {
@@ -950,18 +937,7 @@ class _PremiumTotalDisplay extends ConsumerWidget {
       }
     }
 
-    // Convert yearly totals (these are already yearly projections)
-    for (final entry in yearlyByCurrency.entries) {
-      if (entry.key == baseCurrency) {
-        yearlyTotal += entry.value;
-      } else {
-        final converted =
-            await service.convertAmount(entry.value, entry.key, baseCurrency);
-        yearlyTotal += converted ?? 0;
-      }
-    }
-
-    return {'monthly': monthlyTotal, 'yearly': yearlyTotal};
+    return {'monthly': monthlyTotal};
   }
 }
 

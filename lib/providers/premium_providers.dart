@@ -4,6 +4,7 @@ import '../models/user_profile.dart';
 import '../services/user_profile_service.dart';
 import '../services/exchange_rate_service.dart';
 import '../services/calendar_sync_service.dart';
+import '../services/purchase_service.dart';
 import 'auth_provider.dart';
 
 // ============================================================
@@ -40,13 +41,14 @@ const int trialDurationDays = 7;
 final isInTrialProvider = FutureProvider<bool>((ref) async {
   final prefs = await SharedPreferences.getInstance();
   final firstLaunchStr = prefs.getString('first_launch_date');
-  
+
   if (firstLaunchStr == null) {
     // First time launch - start trial
-    await prefs.setString('first_launch_date', DateTime.now().toIso8601String());
+    await prefs.setString(
+        'first_launch_date', DateTime.now().toIso8601String());
     return true;
   }
-  
+
   final firstLaunch = DateTime.parse(firstLaunchStr);
   final daysSinceFirstLaunch = DateTime.now().difference(firstLaunch).inDays;
   return daysSinceFirstLaunch < trialDurationDays;
@@ -56,11 +58,11 @@ final isInTrialProvider = FutureProvider<bool>((ref) async {
 final trialDaysRemainingProvider = FutureProvider<int>((ref) async {
   final prefs = await SharedPreferences.getInstance();
   final firstLaunchStr = prefs.getString('first_launch_date');
-  
+
   if (firstLaunchStr == null) {
     return trialDurationDays;
   }
-  
+
   final firstLaunch = DateTime.parse(firstLaunchStr);
   final daysSinceFirstLaunch = DateTime.now().difference(firstLaunch).inDays;
   final remaining = trialDurationDays - daysSinceFirstLaunch;
@@ -68,21 +70,32 @@ final trialDaysRemainingProvider = FutureProvider<int>((ref) async {
 });
 
 /// Provider that checks if the current user has premium access.
-/// Premium = paid premium OR in trial period
-/// NOTE: Returns true for all users during testing - set testingMode to false for production
-const bool testingMode = true; // Set to false for production
+/// Premium = paid via in-app purchase
+/// NOTE: Set testingMode to false for production
+const bool testingMode = false; // Set to false for production
+
+/// Provider for the PurchaseService singleton.
+final purchaseServiceProvider = Provider<PurchaseService>((ref) {
+  return PurchaseService();
+});
+
+/// Provider for premium status from purchase service.
+final purchasePremiumProvider = StreamProvider<bool>((ref) {
+  final purchaseService = ref.watch(purchaseServiceProvider);
+  return purchaseService.premiumStatusStream;
+});
 
 final isPremiumProvider = Provider<bool>((ref) {
   // Testing mode - all features free
   if (testingMode) return true;
-  
-  // Check if user has paid premium
-  final profile = ref.watch(userProfileProvider);
-  if (profile?.isPremium ?? false) return true;
-  
-  // Check if user is in trial (async check, default to false)
-  final trialAsync = ref.watch(isInTrialProvider);
-  return trialAsync.valueOrNull ?? false;
+
+  // Check purchase service for premium status
+  final purchaseService = ref.watch(purchaseServiceProvider);
+  if (purchaseService.isPremium) return true;
+
+  // Also watch the stream for reactive updates
+  final premiumAsync = ref.watch(purchasePremiumProvider);
+  return premiumAsync.valueOrNull ?? false;
 });
 
 /// StateNotifier for the user's base currency - works with local storage
@@ -125,7 +138,7 @@ class CurrencyConversionEnabledNotifier extends StateNotifier<bool> {
 }
 
 /// Provider for whether currency conversion is enabled
-final currencyConversionEnabledNotifierProvider = 
+final currencyConversionEnabledNotifierProvider =
     StateNotifierProvider<CurrencyConversionEnabledNotifier, bool>((ref) {
   return CurrencyConversionEnabledNotifier();
 });
@@ -136,7 +149,8 @@ final currencyConversionEnabledProvider = Provider<bool>((ref) {
 });
 
 /// Provider for the user's base currency - uses local storage for immediate updates
-final baseCurrencyNotifierProvider = StateNotifierProvider<BaseCurrencyNotifier, String>((ref) {
+final baseCurrencyNotifierProvider =
+    StateNotifierProvider<BaseCurrencyNotifier, String>((ref) {
   return BaseCurrencyNotifier();
 });
 
@@ -170,7 +184,8 @@ final exchangeRateServiceProvider = Provider<ExchangeRateService>((ref) {
 /// Provider for converting a specific amount to the user's base currency.
 /// Usage: ref.watch(convertedAmountProvider((amount: 100, from: 'EUR')))
 final convertedAmountProvider =
-    FutureProvider.family<double?, ({double amount, String from})>((ref, params) async {
+    FutureProvider.family<double?, ({double amount, String from})>(
+        (ref, params) async {
   final isPremium = ref.watch(isPremiumProvider);
   if (!isPremium) return null;
 
@@ -182,7 +197,8 @@ final convertedAmountProvider =
 
 /// Provider for getting exchange rate between two currencies.
 final exchangeRateProvider =
-    FutureProvider.family<double?, ({String from, String to})>((ref, params) async {
+    FutureProvider.family<double?, ({String from, String to})>(
+        (ref, params) async {
   final service = ref.watch(exchangeRateServiceProvider);
   return service.getRate(params.from, params.to);
 });
@@ -197,7 +213,8 @@ final calendarSyncServiceProvider = Provider<GoogleCalendarSyncService>((ref) {
 });
 
 /// Provider for available calendars.
-final availableCalendarsProvider = FutureProvider<List<CalendarInfo>>((ref) async {
+final availableCalendarsProvider =
+    FutureProvider<List<CalendarInfo>>((ref) async {
   final service = ref.watch(calendarSyncServiceProvider);
   return service.getCalendars();
 });

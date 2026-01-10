@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -5,7 +6,7 @@ import '../providers/auth_provider.dart';
 import '../services/auth_service.dart';
 
 /// Login screen with Email/Password and Google Sign-In options.
-/// 
+///
 /// Displays a clean, centered layout with app branding and sign-in options.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -18,7 +19,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  
+
   bool _isLoading = false;
   bool _isGoogleLoading = false;
   bool _isSignUpMode = false;
@@ -48,11 +49,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _loadSavedCredentials() async {
     final prefs = await SharedPreferences.getInstance();
     final rememberMe = prefs.getBool(_rememberMeKey) ?? false;
-    
+
     if (rememberMe) {
       final savedEmail = prefs.getString(_savedEmailKey) ?? '';
       final savedPassword = prefs.getString(_savedPasswordKey) ?? '';
-      
+
       if (mounted) {
         setState(() {
           _rememberMe = rememberMe;
@@ -66,7 +67,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   /// Save or clear credentials based on "Remember me" setting.
   Future<void> _saveCredentials() async {
     final prefs = await SharedPreferences.getInstance();
-    
+
     if (_rememberMe) {
       await prefs.setBool(_rememberMeKey, true);
       await prefs.setString(_savedEmailKey, _emailController.text.trim());
@@ -90,23 +91,43 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     try {
       final authService = ref.read(authServiceProvider);
-      
+
       if (_isSignUpMode) {
         await authService.signUpWithEmailPassword(
           _emailController.text.trim(),
           _passwordController.text,
         );
+
+        // Show success message for sign up
+        if (mounted) {
+          setState(() {
+            _successMessage =
+                'Account created! Please check your email to verify your account before signing in.';
+            _isLoading = false;
+            _isSignUpMode = false; // Switch to sign-in mode
+          });
+        }
+        return;
       } else {
         await authService.signInWithEmailPassword(
           _emailController.text.trim(),
           _passwordController.text,
         );
       }
-      
+
       // Save credentials if "Remember me" is checked
       await _saveCredentials();
-      
+
       // If successful, the auth state listener will navigate away
+    } on EmailNotVerifiedException catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.message;
+          _isLoading = false;
+        });
+        // Show option to resend verification email
+        _showResendVerificationDialog();
+      }
     } on AuthException catch (e) {
       if (mounted) {
         setState(() {
@@ -124,10 +145,97 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  /// Shows a dialog to resend verification email.
+  Future<void> _showResendVerificationDialog() async {
+    final shouldResend = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Email Not Verified'),
+        content: const Text(
+          'Your email address has not been verified yet. Would you like us to send a new verification email?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Resend Email'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldResend == true) {
+      await _resendVerificationEmail();
+    }
+  }
+
+  /// Resends verification email.
+  Future<void> _resendVerificationEmail() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+      _successMessage = null;
+    });
+
+    try {
+      final authService = ref.read(authServiceProvider);
+
+      // Sign in temporarily to send verification email
+      await authService.signInWithEmailPassword(
+        _emailController.text.trim(),
+        _passwordController.text,
+      );
+    } on EmailNotVerifiedException {
+      // This is expected - now we need to resend
+      try {
+        final authService = ref.read(authServiceProvider);
+        // The user should still be signed in momentarily, resend the email
+        // We need to sign in without the verification check to resend
+        final auth = FirebaseAuth.instance;
+        final credential = await auth.signInWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
+
+        if (credential.user != null) {
+          await credential.user!.sendEmailVerification();
+          await auth.signOut();
+        }
+
+        if (mounted) {
+          setState(() {
+            _successMessage =
+                'Verification email sent! Please check your inbox and spam folder.';
+            _isLoading = false;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _errorMessage =
+                'Failed to send verification email. Please try again.';
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage =
+              'Failed to send verification email. Please try again.';
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   /// Handles password reset.
   Future<void> _resetPassword() async {
     final email = _emailController.text.trim();
-    
+
     if (email.isEmpty) {
       setState(() {
         _errorMessage = 'Please enter your email address first';
@@ -144,7 +252,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       final authService = ref.read(authServiceProvider);
       await authService.sendPasswordResetEmail(email);
-      
+
       if (mounted) {
         setState(() {
           _successMessage = 'Password reset email sent! Check your inbox.';
@@ -207,7 +315,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final isAnyLoading = _isLoading || _isGoogleLoading;
-    
+
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -217,7 +325,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 40),
-              
+
               // App Icon
               const Icon(
                 Icons.subscriptions_outlined,
@@ -284,7 +392,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.check_circle_outline, color: Colors.green[700]),
+                      Icon(Icons.check_circle_outline,
+                          color: Colors.green[700]),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -344,8 +453,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         prefixIcon: const Icon(Icons.lock_outlined),
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _obscurePassword 
-                                ? Icons.visibility_outlined 
+                            _obscurePassword
+                                ? Icons.visibility_outlined
                                 : Icons.visibility_off_outlined,
                           ),
                           onPressed: () {
@@ -383,8 +492,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               width: 24,
                               child: Checkbox(
                                 value: _rememberMe,
-                                onChanged: isAnyLoading 
-                                    ? null 
+                                onChanged: isAnyLoading
+                                    ? null
                                     : (value) {
                                         setState(() {
                                           _rememberMe = value ?? false;
@@ -394,8 +503,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                             const SizedBox(width: 8),
                             GestureDetector(
-                              onTap: isAnyLoading 
-                                  ? null 
+                              onTap: isAnyLoading
+                                  ? null
                                   : () {
                                       setState(() {
                                         _rememberMe = !_rememberMe;
@@ -411,7 +520,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                           ],
                         ),
-                        
+
                         // Forgot Password
                         if (!_isSignUpMode)
                           TextButton(
@@ -465,14 +574,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          _isSignUpMode 
-                              ? 'Already have an account?' 
+                          _isSignUpMode
+                              ? 'Already have an account?'
                               : "Don't have an account?",
                           style: TextStyle(color: Colors.grey[600]),
                         ),
                         TextButton(
-                          onPressed: isAnyLoading 
-                              ? null 
+                          onPressed: isAnyLoading
+                              ? null
                               : () {
                                   setState(() {
                                     _isSignUpMode = !_isSignUpMode;

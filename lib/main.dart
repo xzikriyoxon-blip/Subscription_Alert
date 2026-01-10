@@ -17,6 +17,7 @@ import 'services/theme_service.dart';
 import 'services/ad_service.dart';
 import 'services/widget_service.dart';
 import 'services/auth_service.dart';
+import 'services/purchase_service.dart';
 import 'providers/premium_providers.dart';
 
 /// Entry point of the Subscription Alert application.
@@ -153,6 +154,14 @@ class _BootstrapAppState extends State<_BootstrapApp> {
       await adService.initialize().timeout(const Duration(seconds: 15));
     } catch (e) {
       debugPrint('Bootstrap: Ad init failed (continuing): $e');
+    }
+
+    // Initialize in-app purchases
+    try {
+      final purchaseService = PurchaseService();
+      await purchaseService.initialize().timeout(const Duration(seconds: 15));
+    } catch (e) {
+      debugPrint('Bootstrap: Purchase service init failed (continuing): $e');
     }
   }
 

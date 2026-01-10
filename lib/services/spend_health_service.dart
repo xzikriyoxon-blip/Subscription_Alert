@@ -1,5 +1,6 @@
 import '../models/subscription.dart';
 import '../models/spend_health.dart';
+import '../models/subscription_brand.dart';
 
 /// Service for calculating spend health scores.
 /// 
@@ -250,11 +251,10 @@ class SpendHealthService {
     final activeSubscriptions = subscriptions.where((s) => !s.isCancelled).toList();
     final monthlyTotal = _calculateMonthlyTotal(activeSubscriptions);
     
-    // Category breakdown
+    // Category breakdown - use brand categories for better classification
     final categorySpending = <String, double>{};
     for (final sub in activeSubscriptions) {
-      final brandId = sub.brandId?.toLowerCase() ?? 'other';
-      final category = DuplicateCategories.getCategoryForService(brandId) ?? 'Other';
+      final category = _getCategoryForSubscription(sub);
       categorySpending[category] = (categorySpending[category] ?? 0) + sub.monthlyEquivalent;
     }
 
@@ -295,5 +295,51 @@ class SpendHealthService {
           ? monthlyTotal / activeSubscriptions.length 
           : 0,
     };
+  }
+
+  /// Get category for a subscription using brand database
+  String _getCategoryForSubscription(Subscription sub) {
+    // First try to find the brand in our database
+    final brandId = sub.brandId?.toLowerCase();
+    if (brandId != null) {
+      final brand = SubscriptionBrands.all.where(
+        (b) => b.id.toLowerCase() == brandId
+      ).firstOrNull;
+      if (brand != null) {
+        return brand.category;
+      }
+    }
+    
+    // Try matching by name
+    final nameLower = sub.name.toLowerCase();
+    final brandByName = SubscriptionBrands.all.where(
+      (b) => b.name.toLowerCase() == nameLower || 
+             b.id.toLowerCase() == nameLower.replaceAll(' ', '_')
+    ).firstOrNull;
+    if (brandByName != null) {
+      return brandByName.category;
+    }
+    
+    // Check DuplicateCategories for backward compatibility
+    final duplicateCategory = DuplicateCategories.getCategoryForService(
+      brandId ?? nameLower.replaceAll(' ', '_')
+    );
+    if (duplicateCategory != null) {
+      // Map DuplicateCategories names to BrandCategory names
+      switch (duplicateCategory) {
+        case 'Music Streaming':
+          return BrandCategory.music;
+        case 'Video Streaming':
+          return BrandCategory.streaming;
+        case 'Cloud Storage':
+          return BrandCategory.cloud;
+        case 'VPN Services':
+          return BrandCategory.vpn;
+        case 'News & Reading':
+          return BrandCategory.news;
+      }
+    }
+    
+    return BrandCategory.other;
   }
 }

@@ -1,7 +1,7 @@
 name: subscription_alert
 description: A subscription tracking app with payment reminders.
 publish_to: 'none'
-version: 1.0.4+8
+version: 1.0.4+11
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -50,6 +50,9 @@ dependencies:
   # AdMob Ads
   google_mobile_ads: ^5.2.0
   printing: ^5.14.2
+
+  # In-App Purchases
+  in_app_purchase: ^3.2.0
 
 dev_dependencies:
   flutter_test:
